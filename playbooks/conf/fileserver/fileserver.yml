@@ -1,3 +1,5 @@
 - hosts: "{{ server | default('fileservers') }}"
   roles:
     - geerlingguy.git
+    - chusiang.vim-and-vi-mode
+    - willshersystems.sshd
