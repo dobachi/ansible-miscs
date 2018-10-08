@@ -1,0 +1,10 @@
+[dobachi:children]
+local
+fileservers
+
+; This is a dummy
+[local]
+localhost
+
+[fileservers]
+home
