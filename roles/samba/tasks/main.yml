@@ -1,0 +1,17 @@
+---
+# tasks file for roles/samba
+
+- block:
+
+  - name: install samba
+    package: name=samba state=present
+
+  - name: configure smb.conf
+    template: src=smb.conf.j2 dest=/etc/samba/smb.conf
+    notify: restart smb
+
+  - name: configure services
+    service: name=smb state=started enable=yes
+
+  tags:
+    - samba
