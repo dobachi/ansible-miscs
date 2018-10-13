@@ -1,0 +1,4 @@
+---
+# defaults file for roles/anaconda
+anaconda_home: "/opt/Anaconda"
+anaconda_version: "5.3.0"

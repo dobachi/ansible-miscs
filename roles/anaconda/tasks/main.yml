@@ -1,0 +1,22 @@
+---
+# tasks file for roles/anaconda
+
+- block:
+
+  - name: download Anaconda
+    get_url:
+      url: https://repo.anaconda.com/archive/Anaconda3-{{ anaconda_version }}-Linux-x86_64.sh
+      dest: /tmp/Anaconda3-{{ anaconda_version }}-Linux-x86_64.sh
+
+  - name: mkdir "{{ anaconda_home }}"
+    file:
+      path: "{{ anaconda_home }}"
+      state: directory
+
+  - name: execute installer
+    shell: bash Anaconda3-{{ anaconda_version }}-Linux-x86_64.sh -b -p {{ anaconda_home }}/{{ anaconda_version }}
+    args:
+      chdir: /tmp
+
+  tags:
+    - anaconda
