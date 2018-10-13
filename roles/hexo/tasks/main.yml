@@ -11,6 +11,14 @@
     npm:
       name: hexo-cli
       global: yes
+  - name: install hexo-server
+    npm:
+      name: hexo-server
+      global: yes
+  - name: install hexo-deployer-git
+    npm:
+      name: hexo-deployer-git
+      global: yes
 
   tags:
     - hexo
