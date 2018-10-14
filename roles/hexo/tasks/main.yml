@@ -19,6 +19,14 @@
     npm:
       name: hexo-deployer-git
       global: yes
+  - name: install hexo-generator-json-content
+    npm:
+      name: hexo-generator-json-content
+      global: yes
+  - name: install hexo-generator-i18N
+    npm:
+      name: hexo-generator-i18N
+      global: yes
 
   tags:
     - hexo
