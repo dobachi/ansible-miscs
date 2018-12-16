@@ -23,9 +23,9 @@
     npm:
       name: hexo-generator-json-content
       global: yes
-  - name: install hexo-generator-i18N
+  - name: install hexo-generator-i18n
     npm:
-      name: hexo-generator-i18N
+      name: hexo-generator-i18n
       global: yes
 
   tags:

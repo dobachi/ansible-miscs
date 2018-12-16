@@ -17,6 +17,13 @@
     shell: bash Anaconda3-{{ anaconda_version }}-Linux-x86_64.sh -b -p {{ anaconda_home }}/{{ anaconda_version }}
     args:
       chdir: /tmp
+      creates: "{{ anaconda_home }}/{{ anaconda_version }}/LICENSE.txt"
+
+  - name: create_symlink
+    alternatives:
+      name: anaconda_default
+      path: "{{ anaconda_home }}/{{ anaconda_version }}"
+      link: "{{ anaconda_home }}/default"
 
   tags:
     - anaconda

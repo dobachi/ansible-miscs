@@ -1,0 +1,9 @@
+---
+# tasks file for roles/vagrant
+- block:
+
+  - name: install vagrant
+    package: name=vagrant state=present
+
+  tags:
+    - vagrant
