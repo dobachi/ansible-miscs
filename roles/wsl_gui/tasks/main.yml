@@ -43,6 +43,13 @@
       create: yes
   - name: update_locale
     shell: update-locale LANG=ja_JP.UTF-8
+  - name: link_fonts
+    file:
+      src: /mnt/c/Windows/Fonts
+      dest: /usr/share/fonts/windows
+      state: link
+  - name: update font cache
+    shell: fc-cache -fv
 
   tags:
     - wsl_gui

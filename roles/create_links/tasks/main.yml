@@ -1,0 +1,50 @@
+---
+# tasks file for roles/create_links
+- block:
+
+  - name: if_Sources_exists
+    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Sources ]"
+    register: result
+    ignore_errors: yes
+  - name: link_Sources
+    file:
+      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Sources
+      dest: /home/{{ ansible_env.SUDO_USER }}/Sources.win
+      state: link
+    when: result|succeeded
+
+  - name: if_Downloads_exists
+    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Downloads ]"
+    register: result
+    ignore_errors: yes
+  - name: link_Downloads
+    file:
+      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Downloads
+      dest: /home/{{ ansible_env.SUDO_USER }}/Downloads.win
+      state: link
+    when: result|succeeded
+
+  - name: if_Programs_exists
+    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Programs ]"
+    register: result
+    ignore_errors: yes
+  - name: link_Programs
+    file:
+      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Programs
+      dest: /home/{{ ansible_env.SUDO_USER }}/Programs.win
+      state: link
+    when: result|succeeded
+
+  - name: if_OneDrive_exists
+    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/OneDrive ]"
+    register: result
+    ignore_errors: yes
+  - name: link_OneDrive
+    file:
+      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/OneDrive
+      dest: /home/{{ ansible_env.SUDO_USER }}/OneDrive.win
+      state: link
+    when: result|succeeded
+
+  tags:
+    - create_links
