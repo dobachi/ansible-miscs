@@ -1,0 +1,9 @@
+- hosts: "{{ server | default('localhost') }}"
+  roles:
+    - geerlingguy.git
+    - chusiang.vim-and-vi-mode
+    - trinitronx.tmux
+    - hexo
+    - anaconda
+    - wsl_gui
+    - vim_config
