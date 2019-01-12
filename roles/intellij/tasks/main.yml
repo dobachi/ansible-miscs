@@ -1,0 +1,33 @@
+---
+# tasks file for roles/intellij
+
+- block:
+
+  - name: mkdir_Downloads
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/Downloads
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: downloads_tar
+    get_url:
+      url: https://download.jetbrains.com/idea/ideaIU-{{ intellij_version }}.tar.gz
+      dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: mkdir_intellij
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/Intellij
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: unarchive_intellij
+    unarchive: 
+      src: /home/{{ ansible_env.SUDO_USER }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
+      dest: /home/{{ ansible_env.SUDO_USER }}/Intellij
+      remote_src: yes
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+
+  tags:
+    - intellij
