@@ -1,0 +1,22 @@
+---
+# tasks file for roles/clone_sources
+- block:
+
+  - name: mkdir_Sources
+    file:
+      path: /home/{{ ansible_env.USER }}/Sources
+      state: directory
+      owner: "{{ ansible_env.USER }}"
+      group: "{{ ansible_env.USER }}"
+    become: no
+  - name: clone_sources
+    git:
+      repo: "{{ item.value }}"
+      dest: /home/{{ ansible_env.USER }}/Sources/item.key
+    with_dict:
+      spark: https://github.com/apache/spark.git
+      kafka: https://github.com/apache/kafka.git
+    become: no
+
+  tags:
+    - clone_sources

@@ -1,0 +1,5 @@
+- hosts: "{{ server | default('localhost') }}"
+  become: no
+  roles:
+    - geerlingguy.git
+    - clone_sources
