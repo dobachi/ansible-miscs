@@ -35,6 +35,17 @@
       state: link
     when: result|succeeded
 
+  - name: if_Program_exists
+    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Program ]"
+    register: result
+    ignore_errors: yes
+  - name: link_Program
+    file:
+      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Program
+      dest: /home/{{ ansible_env.SUDO_USER }}/Program.win
+      state: link
+    when: result|succeeded
+
   - name: if_OneDrive_exists
     shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/OneDrive ]"
     register: result
