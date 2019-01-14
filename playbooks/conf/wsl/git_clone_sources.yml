@@ -1,4 +1,4 @@
-- hosts: "{{ server | default('localhost') }}"
+- hosts: "{{ server | default('wsl') }}"
   become: no
   roles:
     - geerlingguy.git

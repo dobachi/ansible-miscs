@@ -8,3 +8,6 @@ localhost
 
 [fileservers]
 home
+
+[wsl]
+localhost

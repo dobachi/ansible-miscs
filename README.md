@@ -13,3 +13,6 @@ This is an example of Ansible playbooks to configure home servers and WSL of Win
   * Configure WSL
 * playbooks/conf/wsl/git_clone_sources.yml
   * Git clone sources like Spark, Kafka, and so on
+* playbooks/conf/wsl/docker.yml
+  * Install docker
+  * You should run wsl as an Administrator

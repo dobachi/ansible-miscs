@@ -1,4 +1,4 @@
-- hosts: "{{ server | default('localhost') }}"
+- hosts: "{{ server | default('wsl') }}"
   roles:
     - geerlingguy.git
     - chusiang.vim-and-vi-mode

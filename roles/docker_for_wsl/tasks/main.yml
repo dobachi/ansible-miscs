@@ -1,0 +1,18 @@
+---
+# tasks file for roles/docker_for_wsl
+
+- block:
+
+  - name: install_docker_17
+    apt:
+      deb: https://download.docker.com/linux/debian/dists/stretch/pool/stable/amd64/docker-ce_17.09.0~ce-0~debian_amd64.deb
+      state: present
+
+  - name: start_docker
+    service:
+      name: docker
+      state: started
+      enabled: yes
+
+  tags:
+    - docker_for_wsl
