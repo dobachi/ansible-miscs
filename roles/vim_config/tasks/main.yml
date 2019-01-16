@@ -36,6 +36,11 @@
       src: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config/_vimrc
       dest: /home/{{ ansible_env.SUDO_USER }}/.vimrc
       state: link
+  - name: link_gvimrc
+    file:
+      src: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config/_gvimrc
+      dest: /home/{{ ansible_env.SUDO_USER }}/.gvimrc
+      state: link
   - name: link_cheatsheet
     file:
       src: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config/cheatsheet.md

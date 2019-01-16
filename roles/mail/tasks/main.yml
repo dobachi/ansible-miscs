@@ -1,0 +1,12 @@
+---
+# tasks file for roles/mail
+
+- block:
+
+  - name: install_mail_utils
+    package:
+      name: mailutils
+      state: present
+
+  tags:
+    - mailutils
