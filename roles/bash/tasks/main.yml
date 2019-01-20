@@ -1,0 +1,15 @@
+---
+# tasks file for roles/bash
+
+- block:
+
+  - name: add_alias_of_ls
+    lineinfile:
+      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+      line: "{{ item }}"
+    with_items:
+      - 'alias ls="ls --color=tty"'
+      - 'alias ll="ls --color=tty -l"'
+
+  tags:
+    - bash
