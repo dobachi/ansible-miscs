@@ -1,0 +1,18 @@
+---
+# tasks file for roles/win_basic_env
+
+- block:
+    - name: install_packages
+      win_chocolatey:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - googlechrome
+        - vim
+        - hyper
+        - anaconda3
+        - intellijidea-ultimate
+        - pycharm
+        - git
+  tags:
+    - win_basic_env
