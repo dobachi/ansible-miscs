@@ -14,5 +14,39 @@
         - intellijidea-ultimate
         - pycharm
         - git
+
+    - block:
+
+      - name: check_state_of_wsl
+        win_shell: Get-WindowsOptionalFeature -Online | ? FeatureName -Match "Microsoft-Windows-Subsystem-Linux" |  ConvertTo-Json
+        register: wsl_check_json
+
+      - set_fact:
+          wsl_check: "{{ wsl_check_json.stdout }}"
+  
+      - name: enable_wsl
+        win_shell: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart
+        when: wsl_check.State != 2
+        notify: restart_os
+
+      - name: force_reboot_if_needed
+        win_reboot:
+        when: wsl_check.State != 2
+
+      - name: wait_for_reboot
+        local_action: wait_for host="{{ inventory_hostname }}" port="{{ ssh_port }}" delay=30
+        when: wsl_check.State != 2
+
+      - name: install_ubuntu1804
+        win_chocolatey:
+          name: wsl-ubuntu-1804
+          state: present
+
+      tags:
+        - wsl
+
   tags:
     - win_basic_env
+
+# ToDo:
+# - Configure environmental variables (e.g. PATH of vim)

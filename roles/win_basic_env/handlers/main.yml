@@ -1,2 +1,4 @@
 ---
 # handlers file for roles/win_basic_env
+- name: restart_os
+  win_reboot:

@@ -1,0 +1,8 @@
+# Use hosts.win inventory
+# ```
+# $ ansible-playbook -i hosts.win playbooks/conf/win/win.yml -k
+# ```
+
+- hosts: "{{ server | default('win') }}"
+  roles:
+    - win_basic_env
