@@ -25,6 +25,7 @@
       - uim-xim
       - uim-fep
       - uim-anthy
+      - uim-mozc
       - dbus-x11
       - vim-gui-common
   - name: configure_DISPLAY
