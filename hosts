@@ -11,3 +11,13 @@ home
 
 [wsl]
 localhost
+
+[thk]
+192.168.0.138
+
+[thk:vars]
+ansible_ssh_user=admin
+ansible_ssh_port=5986
+ansible_connection_port=winrm
+ansible_winrm_server_cert_validation=ignore
+
