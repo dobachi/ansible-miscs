@@ -16,6 +16,7 @@
         - git
         - vmwareworkstation
         - 7zip
+        - clover
 
     - block:
 
