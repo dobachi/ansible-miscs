@@ -17,6 +17,8 @@
         - vmwareworkstation
         - 7zip
         - clover
+        - fastcopy
+        - virtualbox
 
     - block:
 
