@@ -19,6 +19,9 @@
         - clover
         - fastcopy
         - virtualbox
+        - winscp
+        - adobereader
+        - pdfxchangeeditor
 
     - block:
 
