@@ -1,12 +1,10 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
     - git
-    - chusiang.vim-and-vi-mode
-    - trinitronx.tmux
+    - vim
+    - tmux
     - hexo
     - anaconda
-    - wsl_gui
     - vim_config
-    - create_links
     - intellij
     - bash
