@@ -27,9 +27,9 @@
     npm:
       name: hexo-generator-i18n
       global: yes
-  - name: install hexo-footnotes
+  - name: install hexo-renderer-markdown-it
     npm:
-      name: hexo-footnotes
+      name: hexo-renderer-markdown-it
       global: yes
 
   tags:
