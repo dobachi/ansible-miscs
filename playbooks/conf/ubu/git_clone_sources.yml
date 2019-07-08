@@ -1,0 +1,5 @@
+- hosts: "{{ server | default('wsl') }}"
+  become: no
+  roles:
+    - geerlingguy.git
+    - clone_sources
