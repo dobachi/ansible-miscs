@@ -1,0 +1,10 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - git
+    - vim
+    - tmux
+    - hexo
+    - vim_config
+    - bash
+    - jdk
+    - cb_jenkins

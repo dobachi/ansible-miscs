@@ -1,0 +1,18 @@
+---
+# tasks file for roles/cb_jenkins
+
+- block:
+
+  - name: install_apt_key
+    shell: wget -q -O - https://downloads.cloudbees.com/cloudbees-jenkins-distribution/rolling/debian/cloudbees.com.key | sudo apt-key add -
+  - name: add an entry to source.list
+    lineinfile:
+      path: /etc/apt/sources.list
+      line: deb https://downloads.cloudbees.com/cloudbees-jenkins-distribution/rolling/debian binary/
+  - name: install_cb_jenkins
+    package:
+      name: cloudbees-jenkins-distribution
+      state: present
+
+  tags:
+    - cb_jenkins 

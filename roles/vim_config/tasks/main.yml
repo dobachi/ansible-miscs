@@ -41,11 +41,25 @@
       src: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config/_gvimrc
       dest: /home/{{ ansible_env.SUDO_USER }}/.gvimrc
       state: link
+  - name: mkdir_vim
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/.vim
+      state: directory
   - name: link_cheatsheet
     file:
       src: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config/cheatsheet.md
       dest: /home/{{ ansible_env.SUDO_USER }}/.vim/cheatsheet.md
       state: link
+  - name: mkdir_vim_colors
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/.vim/colors
+      state: directory
+  - name: downloads_installer.sh
+    get_url:
+      url: https://raw.githubusercontent.com/w0ng/vim-hybrid/master/colors/hybrid.vim
+      dest: /home/{{ ansible_env.SUDO_USER }}/.vim/colors
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
 
   tags:
     - vim_config
