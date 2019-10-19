@@ -1,0 +1,10 @@
+---
+# tasks file for roles/firefox
+- block:
+  - name: install_firefox
+    apt:
+      name: firefox
+      state: present
+
+  tags:
+    - firefox
