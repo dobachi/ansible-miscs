@@ -1,0 +1,16 @@
+---
+# tasks file for roles/chrome
+
+- block:
+
+  - name: add_key
+    shell: curl https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+  - name: add_list
+    shell: echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
+  - name: install_chrome
+    apt:
+      name: google-chrome-stable
+      update_cache: yes
+      state: present
+  tags:
+    - chrome
