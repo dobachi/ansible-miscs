@@ -6,6 +6,7 @@
     pip:
       name: pipenv
       state: present
+      executable: pip3
 
   tags:
     - pipenv
