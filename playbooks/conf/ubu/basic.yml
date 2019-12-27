@@ -1,0 +1,7 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - git
+    - vim
+    - tmux
+    - vim_config
+    - bash
