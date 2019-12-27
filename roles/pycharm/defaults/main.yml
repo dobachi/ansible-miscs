@@ -1,0 +1,3 @@
+---
+# defaults file for roles/pycharm
+pycharm_version: "2019.3.1"
