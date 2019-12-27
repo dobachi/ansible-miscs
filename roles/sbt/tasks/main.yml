@@ -1,0 +1,41 @@
+---
+# tasks file for roles/sbt
+
+- block:
+
+  - name: mkdir sbt
+    file:
+      path: /opt/sbt
+      state: directory
+
+  - name: mkdir version's directory
+    file:
+      path: /opt/sbt/{{sbt_version}}
+      state: directory
+
+  - name: Download package
+    get_url:
+      url: https://piccolo.link/sbt-{{sbt_version}}.tgz
+      dest: /opt/sbt/sbt-{{sbt_version}}.tgz
+
+  - name: unarchive package
+    shell:
+      cmd: tar xvzf /opt/sbt/sbt-{{sbt_version}}.tgz -C /opt/sbt/{{sbt_version}} --strip-components 1
+      creates: /opt/sbt/{{sbt_version}}/LICENSE
+
+  - name: configure alternatives
+    alternatives:
+      name: sbt
+      link: /opt/sbt/default
+      path: /opt/sbt/1.3.4
+
+  - name: deploy sbt.sh
+    template:
+      src: sbt.sh.j2
+      dest: /etc/profile.d/sbt.sh
+
+  tags:
+    - sbt
+
+
+# vim: et ts=2 sw=2:
