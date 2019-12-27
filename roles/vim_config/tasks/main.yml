@@ -60,6 +60,11 @@
       dest: /home/{{ ansible_env.SUDO_USER }}/.vim/colors
       owner: "{{ ansible_env.SUDO_USER }}"
       group: "{{ ansible_env.SUDO_USER }}"
+  - name: link_template
+    file:
+      src: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config/template
+      dest: /home/{{ ansible_env.SUDO_USER }}/.vim/template
+      state: link
 
   tags:
     - vim_config
