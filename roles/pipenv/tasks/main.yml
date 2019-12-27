@@ -1,0 +1,11 @@
+---
+# tasks file for roles/pipenv
+- block:
+
+  - name: install pipenv
+    pip:
+      name: pipenv
+      state: present
+
+  tags:
+    - pipenv
