@@ -1,6 +1,62 @@
 # {{ ansible_managed }}
 
+# escape key
 set-option -g prefix C-t
-set-window-option -g mode-keys vi
+
+# swap window for version 2
 bind-key -n C-S-Left swap-window -t -1
 bind-key -n C-S-Right swap-window -t +1
+
+set -g default-terminal "xterm-256color"
+setw -g xterm-keys on
+
+#set -g base-index 1
+#setw -g pane-base-index 1
+bind | split-window -h
+bind - split-window -v
+
+# Use vim keybindings in copy mode
+setw -g mode-keys vi
+
+setw -g monitor-activity on
+
+# Stay in the same directory when split panes.
+# http://qiita.com/okuramasafumi/items/72f61ec0af56b7b9b292
+unbind %
+bind-key % split-window -h -c "#{pane_current_path}"
+unbind '"'
+bind-key '"' split-window -v -c "#{pane_current_path}"
+
+bind-key -T copy-mode-vi v send-keys -X begin-selection
+bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "reattach-to-user-namespace pbcopy"
+bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "reattach-to-user-namespace pbcopy"
+
+# Sane scrolling
+set -g terminal-overrides 'xterm*:smcup@:rmcup@'
+# Larger scrollback buffer
+set-option -g history-limit 100000
+
+# Turn Mouse on
+setw -g mouse on
+
+# Toggle mouse on with ^B m
+bind m \
+  set -g mode-mouse on \;\
+  set -g mouse-resize-pane on \;\
+  set -g mouse-select-pane on \;\
+  set -g mouse-select-window on \;\
+  display 'Mouse: ON'
+
+# Toggle mouse off with ^B M
+bind M \
+  set -g mode-mouse off \;\
+  set -g mouse-resize-pane off \;\
+  set -g mouse-select-pane off \;\
+  set -g mouse-select-window off \;\
+  display 'Mouse: OFF'
+
+bind e setw synchronize-panes
+
+bind r source-file ~/.tmux.conf \; display "reloaded tmux.conf"
+# Reload config
+bind-key C-r source ~/.tmux.conf \; display "reloaded tmux.conf"
