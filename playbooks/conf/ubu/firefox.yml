@@ -1,0 +1,5 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - firefox
+
+# vim: et ts=2 sw=2:
