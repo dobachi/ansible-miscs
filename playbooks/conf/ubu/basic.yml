@@ -6,6 +6,5 @@
     - vim_config
     - bash
     - pip3
-    - pipenv
 
 # vim: et ts=2 sw=2:
