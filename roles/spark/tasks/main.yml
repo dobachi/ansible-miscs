@@ -1,0 +1,27 @@
+---
+# tasks file for roles/spark
+
+- block:
+
+  - name: mkdir_spark
+    file:
+      path: /opt/spark
+      state: directory
+
+  - name: download_spark
+    get_url:
+      url: http://ftp.jaist.ac.jp/pub/apache/spark/spark-{{ spark_version }}/spark-{{ spark_version }}-bin-hadoop2.7.tgz
+      dest: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7.tgz
+
+  - name: unarchive_spark
+    unarchive:
+      src: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7.tgz
+      dest: /opt/spark/
+      creates: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7/README.md
+      remote_src: yes
+
+  - name: make_link_default
+    file:
+      dest: /opt/spark/default
+      src: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7
+      state: link
