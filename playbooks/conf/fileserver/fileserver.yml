@@ -11,3 +11,5 @@
     - vagrant
     - geerlingguy.docker
     - vim_config
+    - darktable
+    - pcmanfm

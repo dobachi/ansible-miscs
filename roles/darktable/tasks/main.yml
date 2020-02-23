@@ -1,0 +1,10 @@
+---
+# tasks file for roles/darktable
+- block:
+  - name: install_darktable
+    apt:
+      name: darktable
+      state: present
+
+  tags:
+    - darktable

@@ -1,0 +1,11 @@
+---
+# tasks file for roles/pcmanfm
+- block:
+
+  - name: install_pcmanfm
+    apt:
+      name: pcmanfm
+      state: present
+
+  tags:
+    - pcmanfm
