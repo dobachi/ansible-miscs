@@ -1,6 +1,6 @@
 # README
 
-This is an example of Ansible playbooks to configure home servers and WSL of Windows.
+This is an example of Ansible playbooks to configure servers and WSL of Windows.
 
 ## Homeserver
 
