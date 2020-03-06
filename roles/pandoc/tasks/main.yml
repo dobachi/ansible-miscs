@@ -1,0 +1,19 @@
+---
+# tasks file for roles/pandoc
+- block:
+
+  - name: download_pkg
+    get_url:
+      url: https://github.com/jgm/pandoc/releases/download/2.9.2/pandoc-2.9.2-1-amd64.deb
+      dest: /tmp/pandoc-2.9.2-1-amd64.deb
+
+  - name: install_gdebi
+    apt:
+      name: gdebi
+      state: present
+
+  - name: install_pkg
+    shell: yes y | gdebi /tmp/pandoc-2.9.2-1-amd64.deb
+
+  tags:
+    - pandoc
