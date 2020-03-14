@@ -1,0 +1,11 @@
+---
+# tasks file for roles/chromium
+- block:
+
+  - name: install_chromium_browser
+    apt:
+      name: chromium-browser
+      state: installed
+
+  tags:
+    - chromium
