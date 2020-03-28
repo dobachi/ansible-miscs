@@ -5,12 +5,11 @@
   - name: install_common_packages
     apt:
       name: "{{ item }}"
-      state: present
+      state: installed
     with_items:
       - vim
       - vim-gtk
       - curl
-      - gnome-terminal
 
   tags:
     - commons
