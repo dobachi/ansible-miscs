@@ -5,7 +5,7 @@
   - name: install_chromium_browser
     apt:
       name: chromium-browser
-      state: installed
+      state: present
 
   tags:
     - chromium
