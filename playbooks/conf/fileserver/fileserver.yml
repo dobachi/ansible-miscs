@@ -1,5 +1,6 @@
 - hosts: "{{ server | default('fileservers') }}"
   roles:
+    - commons
     - tmux
     - samba
     - hexo
@@ -7,3 +8,4 @@
     - darktable
     - pcmanfm
     - win_hostname
+    - chrome

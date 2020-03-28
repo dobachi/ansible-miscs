@@ -1,0 +1,15 @@
+---
+# tasks file for roles/commons
+- block:
+  
+  - name: install_common_packages
+    apt:
+      name: "{{ item }}"
+      state: installed
+    with_items:
+      - vim
+      - vim-gtk
+      - curl
+
+  tags:
+    - commons
