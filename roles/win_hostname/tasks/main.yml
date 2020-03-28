@@ -1,0 +1,15 @@
+---
+# tasks file for roles/win_hostname
+- block:
+  - name: install_winbind
+    apt:
+      name: winbind
+      state: installed
+
+  - name: nsswitch
+    template:
+      src: nsswitch.conf.j2
+      dest: /etc/nsswitch.conf
+
+  tags:
+    - win_hostname

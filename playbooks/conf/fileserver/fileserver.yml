@@ -1,15 +1,9 @@
 - hosts: "{{ server | default('fileservers') }}"
   roles:
-    - geerlingguy.git
-    - chusiang.vim-and-vi-mode
-    - willshersystems.sshd
-    - trinitronx.tmux
+    - tmux
     - samba
     - hexo
-    - anaconda
-    - teamviewer
-    - vagrant
-    - geerlingguy.docker
     - vim_config
     - darktable
     - pcmanfm
+    - win_hostname

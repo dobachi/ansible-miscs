@@ -1,5 +1,5 @@
 ---
 # handlers file for roles/samba
 
-- name: restart smb
-  service: name=smb state=restarted
+- name: restart smbd
+  service: name=smbd state=restarted
