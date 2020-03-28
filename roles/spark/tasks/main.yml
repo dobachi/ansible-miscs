@@ -3,6 +3,11 @@
 
 - block:
 
+  - name: install_jdk
+    apt:
+      name: openjdk-8-jdk
+      state: present
+
   - name: mkdir_spark
     file:
       path: /opt/spark
@@ -25,3 +30,8 @@
       dest: /opt/spark/default
       src: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7
       state: link
+
+  - name: configure_spark-env.sh
+    template:
+      src: spark-env.sh.j2
+      dest: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7/conf/spark-env.sh
