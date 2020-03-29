@@ -1,0 +1,22 @@
+---
+# tasks file for roles/mnt_data
+- block:
+
+  - name: mkdir_/mnt/data
+    file:
+      path: /mnt/data
+      state: directory
+
+  - name: make_volume_available
+    shell: lvchange --available y /dev/VolGroup01/vol01
+
+  - name: configure_fstab
+    mount:
+      path: /mnt/data
+      src: /dev/VolGroup01/vol01
+      fstype: xfs
+      opts: rw,relatime,attr2,inode64,noquota
+      state: present
+
+  tags:
+    - mnt_data

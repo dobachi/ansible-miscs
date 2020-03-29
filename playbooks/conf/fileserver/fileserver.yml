@@ -1,6 +1,7 @@
 - hosts: "{{ server | default('fileservers') }}"
   roles:
     - commons
+    - mnt_data
     - tmux
     - samba
     - hexo
