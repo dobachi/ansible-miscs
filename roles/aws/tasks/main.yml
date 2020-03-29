@@ -1,0 +1,12 @@
+---
+# tasks file for roles/aws
+
+- block:
+
+  - name: install_aws_cli
+    apt:
+      name: awscli
+      state: present
+
+  tags:
+    - aws
