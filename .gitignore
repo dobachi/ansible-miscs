@@ -1,4 +1,4 @@
 *retry
 *swp
 *~
-group_vars/private
+group_vars/servers/99_private
