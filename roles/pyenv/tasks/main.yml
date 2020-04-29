@@ -1,0 +1,29 @@
+---
+# tasks file for roles/pyenv
+- block:
+
+  - name: register_home
+    become: yes
+    become_user: "{{ansible_env.SUDO_USER}}"
+    shell: echo $HOME
+    register: home_dir
+
+  - name: exec_pyenv.run
+    become: yes
+    become_user: "{{ansible_env.SUDO_USER}}"
+    shell: echo $HOME && curl https://pyenv.run | bash
+    args:
+      creates: "{{home_dir.stdout}}/.pyenv"
+
+  - name: configure_bashrc
+    become: yes
+    become_user: "{{ansible_env.SUDO_USER}}"
+    lineinfile:
+      path: "{{home_dir.stdout}}/.bashrc"
+      line: "{{item}}"
+    with_items:
+      - 'export PATH="$HOME/.pyenv/bin:$PATH"'
+      - 'eval "$(pyenv init -)"'
+      - 'eval "$(pyenv virtualenv-init -)"'
+  tags:
+    - pyenv
