@@ -1,0 +1,75 @@
+- block:
+
+  - name: install_requirements
+    apt:
+      name: "{{item}}"
+      state: present
+    with_items:
+      - git
+      - checkinstall
+      - mercurial
+      - python-dev
+      - python3-dev
+      - ruby
+      - ruby-dev
+      - libx11-dev
+      - libxt-dev
+      - libgtk2.0-dev
+      - libncurses5
+      - ncurses-dev
+      - liblua5.1-0-dev
+      - libruby
+      - libpython-dev
+      - libpython3-dev
+      - libperl-dev
+      - tcl-dev
+
+  - name: clone_vim
+    git:
+      repo: https://github.com/vim/vim.git
+      dest: /usr/local/src/vim8
+
+  - name: configure_vim
+    shell: |
+      ./configure --with-features=huge \
+                             --disable-darwin \
+                             --disable-selinux \
+                             --enable-fail-if-missing \
+                             --enable-perlinterp=dynamic \
+                             --enable-pythoninterp \
+                             --enable-python3interp \
+                             --enable-tclinterp \
+                             --enable-rubyinterp \
+                             --enable-cscope \
+                             --enable-multibyte \
+                             --enable-xim \
+                             --enable-fontset \
+                             --with-compiledby=xxxkurosukexxx \
+                             --enable-gui=no \
+                             --prefix=/opt/vim8
+    args:
+      chdir: /usr/local/src/vim8
+
+  - name: make_clean_vim
+    shell: make clean
+    args:
+      chdir: /usr/local/src/vim8
+    when: vim_clean
+
+  - name: make_vim
+    shell: make
+    args:
+      chdir: /usr/local/src/vim8
+
+  - name: make_install_vim
+    shell: make install
+    args:
+      chdir: /usr/local/src/vim8
+
+  - name: copy_vim.sh
+    template:
+      src: vim.sh.j2
+      dest: /etc/profile.d/vim.sh
+
+  tags:
+    - vim

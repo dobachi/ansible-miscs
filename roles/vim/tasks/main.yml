@@ -1,12 +1,1 @@
----
-# tasks file for roles/vim
-
-- block:
-
-  - name: install_vim
-    package:
-      name: vim
-      state: present
-
-  tags:
-    - tmux
+- include: "{{ansible_distribution_major_version}}.yml"
