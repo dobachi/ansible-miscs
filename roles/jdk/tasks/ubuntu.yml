@@ -1,0 +1,10 @@
+---
+# tasks file for roles/jdk
+- block:
+    - name: install_openjdk
+      apt:
+        name: openjdk-8-jdk
+        state: present
+
+  tags:
+    - jdk
