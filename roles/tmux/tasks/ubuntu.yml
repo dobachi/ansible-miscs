@@ -1,0 +1,18 @@
+---
+# tasks file for roles/tmux
+
+- block:
+
+  - name: install_tmux
+    apt:
+      name: tmux
+      state: present
+
+  - name: "install tmux config for user: {{ item }}"
+    template: src=tmux.conf.j2 dest=~{{ item }}/.tmux.conf owner={{ item }} group={{ item }} mode=644
+    with_items: "{{ tmux_users }}"
+    tags:
+      - tmux_conf
+
+  tags:
+    - tmux

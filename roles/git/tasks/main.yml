@@ -1,12 +1,1 @@
----
-# tasks file for roles/git
-
-- block:
-
-  - name: install_git
-    package:
-      name: git
-      state: present
-
-  tags:
-    - git
+- include: "{{ansible_distribution}}.yml"

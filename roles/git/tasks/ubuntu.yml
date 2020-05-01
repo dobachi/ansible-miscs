@@ -1,0 +1,12 @@
+---
+# tasks file for roles/git
+
+- block:
+
+  - name: install_git
+    apt:
+      name: git
+      state: present
+
+  tags:
+    - git
