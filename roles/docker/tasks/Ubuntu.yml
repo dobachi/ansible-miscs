@@ -3,38 +3,49 @@
 
 - block:
 
+        #  - name: install_docker_17
+        #    apt:
+        #      deb: https://download.docker.com/linux/debian/dists/stretch/pool/stable/amd64/docker-ce_17.09.0~ce-0~debian_amd64.deb
+        #      state: present
+        #
+        #  - name: start_docker
+        #    service:
+        #      name: docker
+        #      state: started
+        #      enabled: yes
     - name: install_requirements
-      yum:
-        name: "{{ item }}"
+      package:
+        name: "{{ packages }}"
         state: present
-      with_items:
-        - yum-utils
-    - name: add_repo
-      shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      vars:
+        packages:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
     - name: install_gpg_key
       shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
     - name: add_repository
       shell: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
     - name: install_dockerce
-      yum:
-        name: "{{ item }}"
+      package:
+        name: "{{ packages }}"
         state: present
-        update_cache: yes
-      with_items:
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
-    - name: start_docker
-      service:
-        name: docker
-        state: started
-        enabled: yes
+      vars:
+        packages:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
     - name: create_docker.sh
       template:
         src: docker.sh.j2
         dest: /etc/profile.d/docker.sh
     - name: downloads_docker-compose
-      shell:  curl -L "https://github.com/docker/compose/releases/download/1.25.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose
+      get_url:
+        url: https://github.com/docker/compose/releases/download/1.24.0/docker-compose-Linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: 755
 
   tags:
     - docker
