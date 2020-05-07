@@ -1,0 +1,14 @@
+---
+# tasks file for roles/commons
+- block:
+  
+  - name: install_common_packages
+    yum:
+      name: "{{ item }}"
+      state: installed
+    with_items:
+      - curl
+      - unzip
+
+  tags:
+    - commons
