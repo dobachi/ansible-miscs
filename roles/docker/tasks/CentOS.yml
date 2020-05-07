@@ -1,5 +1,5 @@
 ---
-# tasks file for roles/docker_for_wsl
+# tasks file for roles/docker
 
 - block:
 
@@ -48,4 +48,4 @@
         mode: 755
 
   tags:
-    - docker_for_wsl
+    - docker
