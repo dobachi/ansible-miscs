@@ -1,0 +1,11 @@
+---
+# tasks file for roles/gvim
+- block:
+
+  - name: install_gvim
+    apt:
+      name: vim-gtk
+      state: present
+
+  tags:
+    - gvim

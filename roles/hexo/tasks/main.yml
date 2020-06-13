@@ -4,7 +4,7 @@
 - block:
 
   - name: install npm
-    package:
+    apt:
       name: npm
       state: present
   - name: install hexo-cli

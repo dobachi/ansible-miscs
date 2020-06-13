@@ -11,7 +11,7 @@
       src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Sources
       dest: /home/{{ ansible_env.SUDO_USER }}/Sources.win
       state: link
-    when: result|succeeded
+    when: result.rc == 0
 
   - name: if_Downloads_exists
     shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Downloads ]"
@@ -22,7 +22,7 @@
       src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Downloads
       dest: /home/{{ ansible_env.SUDO_USER }}/Downloads.win
       state: link
-    when: result|succeeded
+    when: result.rc == 0
 
   - name: if_Programs_exists
     shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Programs ]"
@@ -33,7 +33,7 @@
       src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Programs
       dest: /home/{{ ansible_env.SUDO_USER }}/Programs.win
       state: link
-    when: result|succeeded
+    when: result.rc == 0
 
   - name: if_Program_exists
     shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Program ]"
@@ -44,7 +44,7 @@
       src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Program
       dest: /home/{{ ansible_env.SUDO_USER }}/Program.win
       state: link
-    when: result|succeeded
+    when: result.rc == 0
 
   - name: if_OneDrive_exists
     shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/OneDrive ]"
@@ -55,7 +55,7 @@
       src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/OneDrive
       dest: /home/{{ ansible_env.SUDO_USER }}/OneDrive.win
       state: link
-    when: result|succeeded
+    when: result.rc == 0
 
   tags:
     - create_links
