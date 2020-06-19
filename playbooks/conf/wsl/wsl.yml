@@ -2,6 +2,7 @@
   roles:
     - git
     - tmux
+    - pandoc
     - hexo
     - wsl_gui
     - gvim

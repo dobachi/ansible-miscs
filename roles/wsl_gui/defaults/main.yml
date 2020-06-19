@@ -1,2 +1,4 @@
 ---
 # defaults file for roles/wsl_gui
+
+wsl_gui_2: True
