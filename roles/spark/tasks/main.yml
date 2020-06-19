@@ -10,23 +10,23 @@
 
   - name: download_spark
     get_url:
-      url: http://ftp.jaist.ac.jp/pub/apache/spark/spark-{{ spark_version }}/spark-{{ spark_version }}-bin-hadoop2.7.tgz
-      dest: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7.tgz
+      url: https://downloads.apache.org/spark/spark-{{ spark_version }}/spark-{{ spark_version }}-bin-hadoop{{ spark_hadoop_version }}.tgz
+      dest: /opt/spark/spark-{{ spark_version }}-bin-hadoop{{ spark_hadoop_version }}.tgz
 
   - name: unarchive_spark
     unarchive:
-      src: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7.tgz
+      src: /opt/spark/spark-{{ spark_version }}-bin-hadoop{{ spark_hadoop_version }}.tgz
       dest: /opt/spark/
-      creates: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7/README.md
+      creates: /opt/spark/spark-{{ spark_version }}-bin-hadoop{{ spark_hadoop_version }}/README.md
       remote_src: yes
 
   - name: make_link_default
     file:
       dest: /opt/spark/default
-      src: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7
+      src: /opt/spark/spark-{{ spark_version }}-bin-hadoop{{ spark_hadoop_version }}
       state: link
 
   - name: configure_spark-env.sh
     template:
       src: spark-env.sh.j2
-      dest: /opt/spark/spark-{{ spark_version }}-bin-hadoop2.7/conf/spark-env.sh
+      dest: /opt/spark/spark-{{ spark_version }}-bin-hadoop{{ spark_hadoop_version }}/conf/spark-env.sh
