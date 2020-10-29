@@ -1,0 +1,34 @@
+---
+# tasks file for roles/texlive
+
+- block:
+
+  - name: download_texlive_package
+    get_url:
+      url: http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
+      dest: /tmp/install-tl-unx.tar.gz
+
+  - name: unarchive_package
+    unarchive:
+      src: /tmp/install-tl-unx.tar.gz
+      dest: /tmp
+      remote_src: yes
+
+  - name: configure_texlive.profile
+    template:
+      src: texlive.profile.j2
+      dest: /tmp/texlive.profile
+
+  - name: install
+    shell: ./install-tl --profile /tmp/texlive.profile
+    args:
+      chdir: /tmp/install-tl-20201029
+      creates: /usr/local/texlive/2020/README
+
+  - name: configure_texlive.sh
+    template:
+      src: texlive.sh.j2
+      dest: /etc/profile.d/texlive.sh
+
+  tags:
+    - texlive
