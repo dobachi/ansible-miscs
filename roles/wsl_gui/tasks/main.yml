@@ -37,7 +37,7 @@
   - name: configure_DISPLAY
     lineinfile:
       path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
-      line: 'export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0'
+      line: "export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0"
       create: yes
     when: wsl_gui_2 == True
   - name: configure_dot_uim
