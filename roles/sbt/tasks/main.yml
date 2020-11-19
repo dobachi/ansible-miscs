@@ -15,7 +15,7 @@
 
   - name: Download package
     get_url:
-      url: https://piccolo.link/sbt-{{sbt_version}}.tgz
+      url: https://github.com/sbt/sbt/releases/download/v{{sbt_version}}/sbt-{{sbt_version}}.tgz
       dest: /opt/sbt/sbt-{{sbt_version}}.tgz
 
   - name: unarchive package
