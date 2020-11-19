@@ -27,7 +27,7 @@
     alternatives:
       name: sbt
       link: /opt/sbt/default
-      path: /opt/sbt/1.3.4
+      path: /opt/sbt/{{sbt_version}}
 
   - name: deploy sbt.sh
     template:
