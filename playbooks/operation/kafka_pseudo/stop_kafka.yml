@@ -1,0 +1,9 @@
+- hosts: "{{ server | default('localhost') }}"
+  tasks:
+    - name: stop_kafka_server
+      become: yes
+      become_user: kafka
+      shell: ./bin/kafka-server-stop.sh config/server.properties
+      args:
+        chdir: /opt/kafka_pseudo/default
+
