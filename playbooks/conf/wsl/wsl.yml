@@ -5,7 +5,7 @@
     - pandoc
     - hexo
     - wsl_gui
-    - gvim
+    - vim
     - vim_config
     - create_links
     - intellij

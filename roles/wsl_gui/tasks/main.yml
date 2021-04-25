@@ -89,7 +89,6 @@
       - libxml2-devel
       - libxslt-devel
       - ibus-kkc
-      - vim-X11
   - name: configure_DISPLAY
     lineinfile:
       path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
