@@ -1,5 +1,7 @@
 ---
 # tasks file for roles/wsl_gui
+
+# Ubuntu18
 - block:
 
   - name: install_packages
@@ -61,3 +63,77 @@
 
   tags:
     - wsl_gui
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
+
+# CentOS7
+- block:
+
+  - name: install_packages
+    package:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - git
+      - openssl-devel
+      - readline-devel
+      - zlib-devel
+      - xorg-x11-apps
+      - xorg-x11-utils
+      - xorg-x11-server-utils
+      - sqlite-devel
+      - nodejs
+      - ipa-gothic-fonts
+      - ipa-mincho-fonts
+      - ipa-pgothic-fonts
+      - ipa-pmincho-fonts
+      - libxml2-devel
+      - libxslt-devel
+      - ibus-kkc
+      - vim-X11
+  - name: configure_DISPLAY
+    lineinfile:
+      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+      line: 'export DISPLAY=localhost:0.0'
+      create: yes
+    when: wsl_gui_2 == False
+  - name: configure_DISPLAY
+    lineinfile:
+      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+      line: "export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0"
+      create: yes
+    when: wsl_gui_2 == True
+
+  - name: configure_ibus
+    template:
+      src: ibusrc
+      dest: /home/{{ ansible_env.SUDO_USER }}/.ibusrc
+  - name: configure_GTK_IM_MODULE
+    lineinfile:
+      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+      line: '. ~/.ibusrc'
+      create: yes
+
+# We cannot use localectl in WSL
+  - name: LANG
+    lineinfile:
+      path: /etc/profile
+      line: LANG="ja_JP.UTF-8"
+  - name: LANGAGEH
+    lineinfile:
+      path: /etc/profile
+      line: LANGAGE="ja_JP:ja"
+  - name: LC
+    lineinfile:
+      path: /etc/profile
+      line: LC_ALL="ja_JP.UTF-8"
+#  - name: link_fonts
+#    file:
+#      src: /mnt/c/Windows/Fonts
+#      dest: /usr/share/fonts/windows
+#      state: link
+#  - name: update font cache
+#    shell: fc-cache -fv
+
+  tags:
+    - wsl_gui
+  when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"

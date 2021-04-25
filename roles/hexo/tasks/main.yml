@@ -1,6 +1,7 @@
 ---
 # tasks file for roles/hexo
 
+# Ubuntu18
 - block:
 
   - name: install npm
@@ -34,3 +35,40 @@
 
   tags:
     - hexo
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
+
+# CentOS7
+- block:
+
+  - name: install npm
+    yum:
+      name: npm
+      state: present
+  - name: install hexo-cli
+    npm:
+      name: hexo-cli
+      global: yes
+  - name: install hexo-server
+    npm:
+      name: hexo-server
+      global: yes
+  - name: install hexo-deployer-git
+    npm:
+      name: hexo-deployer-git
+      global: yes
+  - name: install hexo-generator-json-content
+    npm:
+      name: hexo-generator-json-content
+      global: yes
+  - name: install hexo-generator-i18n
+    npm:
+      name: hexo-generator-i18n
+      global: yes
+  - name: install hexo-renderer-markdown-it
+    npm:
+      name: hexo-renderer-markdown-it
+      global: yes
+
+  tags:
+    - hexo
+  when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"

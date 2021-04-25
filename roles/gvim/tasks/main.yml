@@ -9,3 +9,15 @@
 
   tags:
     - gvim
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
+
+- block:
+
+  - name: install_gvim
+    yum:
+      name: vim-X11
+      state: present
+
+  tags:
+    - gvim
+  when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"

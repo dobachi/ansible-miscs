@@ -1,5 +1,7 @@
 ---
 # tasks file for roles/pandoc
+
+# Ubuntu18
 - block:
 
   - name: download_pkg
@@ -17,3 +19,33 @@
 
   tags:
     - pandoc
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
+
+# CentOS7
+- block:
+
+  - name: mkdir_/usr/local/pandoc
+    file:
+      path: /usr/local/pandoc
+      state: directory
+
+  - name: download_pkg
+    get_url:
+      url: https://github.com/jgm/pandoc/releases/download/2.13/pandoc-2.13-linux-amd64.tar.gz
+      dest: /usr/local/pandoc/pandoc-2.13-linux-amd64.tar.gz
+
+  - name: unarchive_package
+    unarchive:
+      src: /usr/local/pandoc/pandoc-2.13-linux-amd64.tar.gz
+      dest: /usr/local/pandoc/pandoc-2.13
+      creates: /usr/local/pandoc/pandoc-2.13/bin/pandoc
+
+  - name: alternatives
+    alternatives:
+      name: pandoc
+      link: /usr/local/pandoc/default
+      path: /usr/local/pandoc/pandoc-2.13
+
+  tags:
+    - pandoc
+  when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"
