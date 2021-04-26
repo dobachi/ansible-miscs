@@ -37,7 +37,7 @@
   - name: unarchive_package
     unarchive:
       src: /usr/local/pandoc/pandoc-2.13-linux-amd64.tar.gz
-      dest: /usr/local/pandoc/pandoc-2.13
+      dest: /usr/local/pandoc
       creates: /usr/local/pandoc/pandoc-2.13/bin/pandoc
 
   - name: alternatives
