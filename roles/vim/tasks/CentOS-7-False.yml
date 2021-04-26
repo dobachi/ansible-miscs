@@ -40,7 +40,8 @@
                              --enable-fontset \
                              --with-compiledby=xxxkurosukexxx \
                              --enable-gui=no \
-                             --prefix=/opt/vim8
+                             --prefix=/opt/vim8 \
+                             --enable-gui=gtk2
     args:
       chdir: /usr/local/src/vim8
 
