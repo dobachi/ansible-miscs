@@ -46,6 +46,15 @@
       link: /usr/local/pandoc/default
       path: /usr/local/pandoc/pandoc-2.13
 
+  - name: /etc/profile.d/pandoc.sh
+    template:
+      src: pandoc.sh.j2
+      dest: /etc/profile.d/pandoc.sh
+
+
   tags:
     - pandoc
   when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"
+
+
+# vim: set et ts=2 sw=2 tw=2:
