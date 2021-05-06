@@ -40,9 +40,11 @@
 # CentOS7
 - block:
 
-  - name: install npm
+  - name: install_nodejs_repo
+    shell: curl -fsSL https://rpm.nodesource.com/setup_16.x | bash -
+  - name: install nodejs
     yum:
-      name: npm
+      name: nodejs
       state: present
   - name: install hexo-cli
     npm:
