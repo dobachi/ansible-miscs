@@ -1,0 +1,13 @@
+---
+# tasks file for roles/pip3
+- block:
+
+  - name: install pip3
+    yum:
+      name: python3-pip
+      state: present
+
+  tags:
+    - pip3
+
+# vim: et ts=2 sw=2:

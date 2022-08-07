@@ -1,0 +1,12 @@
+- block:
+  - name: install_asc
+    shell: rpm --import https://packages.microsoft.com/keys/microsoft.asc
+
+  - name: copy_repo'
+    template:
+      src: vscode.repo.j2
+      dest: /etc/yum.repos.d/vscode.repo
+  - name: install_code
+    yum:
+      name: code
+      state: installed
