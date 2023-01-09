@@ -35,7 +35,7 @@
 
   tags:
     - hexo
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
+  when: ansible_distribution == "Ubuntu" and (ansible_distribution_major_version == "18" or ansible_distribution_major_version == "22")
 
 # CentOS7
 - block:

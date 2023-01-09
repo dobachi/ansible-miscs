@@ -20,24 +20,24 @@
       owner: "{{ ansible_env.SUDO_USER }}"
       group: "{{ ansible_env.SUDO_USER }}"
       recurse: yes
-  - name: mkdir_bundles
-    file:
-      path: /home/{{ ansible_env.SUDO_USER }}/vimfiles/bundles
-      state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
-  - name: downloads_installer.sh
-    get_url:
-      url: https://raw.githubusercontent.com/Shougo/dein.vim/master/bin/installer.sh
-      dest: /home/{{ ansible_env.SUDO_USER }}/vimfiles/installer.sh
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
-  - name: execute_installer.sh
-    shell: bash /home/{{ ansible_env.SUDO_USER }}/vimfiles/installer.sh /home/{{ ansible_env.SUDO_USER }}/vimfiles/bundles
-    args:
-      creates: "/home/{{ ansible_env.SUDO_USER }}/vimfiles/bundles/repos/github.com/Shougo/dein.vim"
-    become: yes
-    become_user: "{{ ansible_env.SUDO_USER }}"
+#  - name: mkdir_bundles
+#    file:
+#      path: /home/{{ ansible_env.SUDO_USER }}/vimfiles/bundles
+#      state: directory
+#      owner: "{{ ansible_env.SUDO_USER }}"
+#      group: "{{ ansible_env.SUDO_USER }}"
+#  - name: downloads_installer.sh
+#    get_url:
+#      url: https://raw.githubusercontent.com/Shougo/dein.vim/master/bin/installer.sh
+#      dest: /home/{{ ansible_env.SUDO_USER }}/vimfiles/installer.sh
+#      owner: "{{ ansible_env.SUDO_USER }}"
+#      group: "{{ ansible_env.SUDO_USER }}"
+#  - name: execute_installer.sh
+#    shell: bash /home/{{ ansible_env.SUDO_USER }}/vimfiles/installer.sh /home/{{ ansible_env.SUDO_USER }}/vimfiles/bundles
+#    args:
+#      creates: "/home/{{ ansible_env.SUDO_USER }}/vimfiles/bundles/repos/github.com/Shougo/dein.vim"
+#    become: yes
+#    become_user: "{{ ansible_env.SUDO_USER }}"
   - name: link_vimrc
     file:
       src: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config/_vimrc
