@@ -1,0 +1,7 @@
+---
+# tasks file for roles/gradle
+
+- block:
+  - name: Download_bin
+    get_url:
+      url: https://services.gradle.org/distributions/gradle-7.5.1-bin.zip

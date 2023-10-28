@@ -1,0 +1,13 @@
+---
+# tasks file for roles/kind
+- block:
+  
+  - name: install_kind
+    shell:
+      cmd: go install sigs.k8s.io/kind@{{kind_version}}
+      creates: /home/{{ ansible_env.SUDO_USER }}/go/bin/kind
+
+  - name: PATH
+    lineinfile:
+      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+      line: export PATH=$PATH:$HOME/go/bin

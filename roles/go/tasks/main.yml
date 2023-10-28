@@ -1,0 +1,40 @@
+---
+# tasks file for roles/go
+- block:
+  
+  - name: mkdir
+    file:
+      path: /usr/local/go
+      state: directory
+
+  - name: downloads_go_package
+    get_url:
+      url: https://go.dev/dl/go{{go_version}}.linux-amd64.tar.gz
+      dest: /usr/local/go/go{{go_version}}.linux-amd64.tar.gz
+
+  - name: unarchive_go_package
+    unarchive:
+      src: /usr/local/go/go{{go_version}}.linux-amd64.tar.gz
+      dest: /usr/local/go
+      remote_src: yes
+      creates: /usr/local/go/go/bin/go
+
+  - name: rename
+    shell:
+      cmd: mv /usr/local/go/go /usr/local/go/{{go_version}}
+      creates: /usr/local/go/{{go_version}}/bin/go
+
+  - name: create_link
+    alternatives:
+      name: go
+      link: /usr/local/go/default
+      path: /usr/local/go/{{go_version}}
+
+  - name: PATH
+    lineinfile:
+      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+      line: export PATH=$PATH:/usr/local/go/default/bin
+
+
+  tags:
+    - go

@@ -1,0 +1,3 @@
+---
+# defaults file for roles/kind
+kind_version: "v0.20.0"
