@@ -11,3 +11,17 @@
     lineinfile:
       path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
       line: export PATH=$PATH:$HOME/go/bin
+
+  - name: mkdir_kind
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/Sources/kind_conf
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+
+  - name: cluster_conf
+    template:
+      src: cluster-conf.yml.j2
+      dest: /home/{{ ansible_env.SUDO_USER }}/Sources/kind_conf/cluster-conf.yml
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
