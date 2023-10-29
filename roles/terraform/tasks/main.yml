@@ -1,0 +1,12 @@
+---
+# tasks file for roles/terraform
+- block:
+
+  - name: install_requirements
+    apt:
+      name: "{{item}}"
+      state: latest
+    with_items:
+      - gnupg
+      - software-properties-common
+      
