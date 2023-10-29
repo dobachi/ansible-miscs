@@ -25,3 +25,7 @@
       dest: /home/{{ ansible_env.SUDO_USER }}/Sources/kind_conf/cluster-conf.yml
       owner: "{{ ansible_env.SUDO_USER }}"
       group: "{{ ansible_env.SUDO_USER }}"
+
+  tags:
+    - kind
+
