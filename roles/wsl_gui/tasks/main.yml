@@ -24,10 +24,7 @@
       - libxslt1-dev
       - language-pack-ja
       - uim
-      - uim-xim
-      - uim-fep
-      - uim-anthy
-      - uim-mozc
+      - fcitx-mozc
       - dbus-x11
       - vim-gui-common
 #  - name: configure_DISPLAY
@@ -46,11 +43,26 @@
     template:
       src: uim.j2
       dest: /home/{{ ansible_env.SUDO_USER }}/.uim
-  - name: configure_GTK_IM_MODULE
+  - name: configure_machine-id
+    template:
+      src: machine-id.j2
+      dest: /var/lib/dbus/machine-id
+  - name: configure_profile
     lineinfile:
       path: /home/{{ ansible_env.SUDO_USER }}/.profile
-      line: 'export GTK_IM_MODULE=uim'
+      line: "{{item}}"
       create: yes
+    with_items:
+      - "#Added by bash script from https://astherier.com/blog/2021/07/windows11-wsl2-wslg-japanese/"
+      - "export GTK_IM_MODULE=fcitx"
+      - "export QT_IM_MODULE=fcitx"
+      - "export XMODIFIERS=@im=fcitx"
+      - "export DefaultIMModule=fcitx"
+      - "if [ $SHLVL = 1 ] ; then"
+      - "  (fcitx-autostart > /dev/null 2>&1 &)"
+      - "  xset -r 49  > /dev/null 2>&1"
+      - "fi"
+      - "#Added by bash script: end"
   - name: update_locale
     shell: update-locale LANG=ja_JP.UTF-8
   - name: link_fonts
