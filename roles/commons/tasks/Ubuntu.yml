@@ -5,10 +5,15 @@
   - name: install_common_packages
     apt:
       name: "{{ item }}"
-      state: installed
+      state: latest
     with_items:
       - curl
       - unzip
+
+  - name: update editor
+    alternatives:
+      name: editor
+      path: /usr/bin/vim.basic
 
   tags:
     - commons

@@ -30,18 +30,18 @@
       - uim-mozc
       - dbus-x11
       - vim-gui-common
-  - name: configure_DISPLAY
-    lineinfile:
-      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
-      line: 'export DISPLAY=localhost:0.0'
-      create: yes
-    when: wsl_gui_2 == False
-  - name: configure_DISPLAY
-    lineinfile:
-      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
-      line: "export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0"
-      create: yes
-    when: wsl_gui_2 == True
+#  - name: configure_DISPLAY
+#    lineinfile:
+#      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+#      line: 'export DISPLAY=localhost:0.0'
+#      create: yes
+#    when: wsl_gui_2 == False
+#  - name: configure_DISPLAY
+#    lineinfile:
+#      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+#      line: "export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0"
+#      create: yes
+#    when: wsl_gui_2 == True
   - name: configure_dot_uim
     template:
       src: uim.j2
@@ -63,7 +63,7 @@
 
   tags:
     - wsl_gui
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
+  when: ansible_distribution == "Ubuntu" and ( ansible_distribution_major_version == "18" or ansible_distribution_major_version == "22" )
 
 # CentOS7
 - block:
