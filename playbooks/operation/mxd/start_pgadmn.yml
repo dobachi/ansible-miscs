@@ -1,0 +1,10 @@
+- hosts: "{{ server | default('localhost') }}"
+  tasks:
+    - name: start_pgadmin
+      docker_container:
+        name: pgadmin4mxd
+        image: dpage/pgadmin4
+        state: started
+        env:
+          PGADMIN_DEFAULT_EMAIL: dobachi1983oss@gmail.com
+          PGADMIN_DEFAULT_PASSWORD: password
