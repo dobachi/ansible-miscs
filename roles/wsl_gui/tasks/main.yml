@@ -27,6 +27,7 @@
       - fcitx-mozc
       - dbus-x11
       - vim-gui-common
+      - ubuntu-desktop
 #  - name: configure_DISPLAY
 #    lineinfile:
 #      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
@@ -75,7 +76,7 @@
 
   tags:
     - wsl_gui
-  when: ansible_distribution == "Ubuntu" and ( ansible_distribution_major_version == "18" or ansible_distribution_major_version == "22" )
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
 
 # Ubuntu22
 - block:
