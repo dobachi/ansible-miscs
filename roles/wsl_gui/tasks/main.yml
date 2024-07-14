@@ -65,6 +65,85 @@
     - wsl_gui
   when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
 
+# Ubuntu22
+- block:
+
+    - name: install_packages
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - git
+        - build-essential
+        - libssl-dev
+        - libreadline-dev
+        - zlib1g-dev
+        - x11-apps
+        - x11-utils
+        - x11-xserver-utils
+        - libsqlite3-dev
+        - nodejs
+        - fonts-ipafont
+        - libxml2-dev
+        - libxslt1-dev
+        - language-pack-ja
+        - uim
+        - uim-xim
+        - uim-fep
+        - uim-anthy
+        - uim-mozc
+        - dbus-x11
+        - vim-gui-common
+    - name: configure_DISPLAY
+      lineinfile:
+        path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+        line: 'export DISPLAY=localhost:0.0'
+        create: yes
+      when: wsl_gui_2 == False
+    #- name: configure_DISPLAY
+    #  lineinfile:
+    #    path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+    #    line: "export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0"
+    #    create: yes
+    #  when: wsl_gui_2 == True
+    - name: configure_dot_uim
+      template:
+        src: uim.j2
+        dest: /home/{{ ansible_env.SUDO_USER }}/.uim
+    - name: configure_GTK_IM_MODULE
+      lineinfile:
+        path: /home/{{ ansible_env.SUDO_USER }}/.profile
+        line: 'export GTK_IM_MODULE=uim'
+        create: yes
+    - name: configure_XMODIFIERS
+      lineinfile:
+        path: /home/{{ ansible_env.SUDO_USER }}/.profile
+        line: 'export XMODIFIERS="@im=uim"'
+        create: yes
+    - name: configure_UIM_CANDWIN_PROG
+      lineinfile:
+        path: /home/{{ ansible_env.SUDO_USER }}/.profile
+        line: 'export UIM_CANDWIN_PROG=uim-candwin-gtk'
+        create: yes
+    - name: configure_uim-xim
+      lineinfile:
+        path: /home/{{ ansible_env.SUDO_USER }}/.profile
+        line: 'uim-xim &'
+        create: yes
+    - name: update_locale
+      shell: update-locale LANG=ja_JP.UTF-8
+    - name: link_fonts
+      file:
+        src: /mnt/c/Windows/Fonts
+        dest: /usr/share/fonts/windows
+        state: link
+    - name: update font cache
+      shell: fc-cache -fv
+
+  tags:
+    - wsl_gui
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "22"
+
 # CentOS7
 - block:
 

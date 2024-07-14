@@ -4,7 +4,7 @@
     - tmux
     - pandoc
     - hexo
-      #    - wsl_gui
+    - wsl_gui
     - vim
     - vim_config
     - create_links
