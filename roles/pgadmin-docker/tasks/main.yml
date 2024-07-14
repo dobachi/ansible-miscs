@@ -1,0 +1,10 @@
+---
+# tasks file for roles/pgadmin-docker
+- block:
+  - name: pull pgadmin4 docker
+    docker_image:
+      name: dpage/pgadmin4
+      source: pull
+
+  tags:
+    - pgadmin-docker

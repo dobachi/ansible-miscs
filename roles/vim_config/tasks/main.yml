@@ -10,7 +10,7 @@
       group: "{{ ansible_env.SUDO_USER }}"
   - name: clone_git_config
     git:
-      repo: https://dobachi@github.com/dobachi/vim_config.git
+      repo: git@github.com:dobachi/vim_config.git
       dest: /home/{{ ansible_env.SUDO_USER }}/Sources/vim_config
       update: yes
   - name: chown_vim_config

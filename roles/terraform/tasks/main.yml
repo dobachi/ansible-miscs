@@ -1,0 +1,35 @@
+---
+# tasks file for roles/terraform
+- block:
+
+  - name: install_requirements
+    apt:
+      name: "{{item}}"
+      state: latest
+    with_items:
+      - gnupg
+      - software-properties-common
+      
+  - name: download_gpgkey
+    shell:
+      cmd: |
+        wget -O- https://apt.releases.hashicorp.com/gpg | \
+        gpg --dearmor | \
+        tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+  - name: add soruce list
+    template:
+      src: hashicorp.list.j2
+      dest: /etc/apt/sources.list.d/hashicorp.list
+
+  - name: apt update
+    apt:
+      update_cache: yes
+
+  - name: install terraform
+    apt:
+      name: terraform
+      state: latest
+
+  tags:
+    - terraform

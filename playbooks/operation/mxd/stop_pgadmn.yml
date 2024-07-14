@@ -1,0 +1,7 @@
+- hosts: "{{ server | default('localhost') }}"
+  tasks:
+    - name: stop_pgadmin
+      docker_container:
+        name: pgadmin4mxd
+        image: dpage/pgadmin4
+        state: stopped

@@ -1,0 +1,13 @@
+# cluster-config.yml
+# 
+# ```bash
+# kind create cluster --config=${HOME}/Sources/kind_conf/cluster-conf.yml
+# ```
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 30000
+    hostPort: 30000
+    protocol: TCP
