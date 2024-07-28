@@ -1,5 +1,2 @@
 ---
 # defaults file for roles/tmux
-
-tmux_users:
-  - "{{ (ansible_ssh_user|default(False))|ternary( ansible_ssh_user, ansible_user|default(ansible_user_id)) }}"

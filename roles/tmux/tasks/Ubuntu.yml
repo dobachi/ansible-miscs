@@ -8,11 +8,13 @@
       name: tmux
       state: present
 
-  - name: "install tmux config for user: {{ item }}"
-    template: src=tmux.conf.j2 dest=~{{ item }}/.tmux.conf owner={{ item }} group={{ item }} mode=644
-    with_items: "{{ tmux_users }}"
+  - name: "install tmux config for user"
+    template:
+      dest: /home/{{ ansible_env.SUDO_USER }}/.tmux.conf
+      src: tmux.conf.j2
     tags:
       - tmux_conf
+    become: no
 
   tags:
     - tmux
