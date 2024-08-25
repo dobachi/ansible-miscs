@@ -1,0 +1,13 @@
+---
+# tasks file for roles/register_home
+- block:
+    - name: Get ansible_user home directory
+      shell: 'getent passwd "{{ansible_env.SUDO_USER}}" | cut -d: -f6'
+      register: ansible_home_result
+
+    - name: Set the fact for the other scripts to use
+      set_fact: ansible_home='{{ansible_home_result.stdout}}'
+
+  tags:
+    - register_home
+

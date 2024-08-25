@@ -2,6 +2,12 @@
 # tasks file for roles/intellij
 
 - block:
+  - name: Get ansible_user home directory
+    shell: 'getent passwd "{{ansible_env.SUDO_USER}}" | cut -d: -f6'
+    register: ansible_home_result
+
+  - name: Set the fact for the other scripts to use
+    set_fact: ansible_home='{{ansible_home_result.stdout}}'
 
   - name: mkdir_Downloads
     file:
@@ -28,6 +34,17 @@
       remote_src: yes
       owner: "{{ ansible_env.SUDO_USER }}"
       group: "{{ ansible_env.SUDO_USER }}"
+      creates: "{{ansible_home}}/Intellij/idea-IU-{{ intellij_directory }}"
+  - name: configure_alternatives
+    alternatives:
+      name: intellij
+      path: "{{ansible_home}}/Intellij/idea-IU-{{ intellij_directory }}/bin/idea.sh"
+      link: "{{ansible_home}}/.local/bin/idea"
+  - name: copy_ideavimrc
+    get_url:
+      url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc
+      dest: "{{ansible_home}}/.ideavimrc"
+    become: no
 
   tags:
     - intellij
