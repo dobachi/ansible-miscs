@@ -6,7 +6,9 @@
       register: ansible_home_result
 
     - name: Set the fact for the other scripts to use
-      set_fact: ansible_home='{{ansible_home_result.stdout}}'
+      set_fact:
+        ansible_home: '{{ansible_home_result.stdout}}'
+        cacheable: true
 
   tags:
     - register_home
