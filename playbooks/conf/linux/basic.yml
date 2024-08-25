@@ -1,6 +1,7 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
     - commons
+    - register_home
     - git
     - zed
     - vim
@@ -9,6 +10,6 @@
     - bash
     - pip3
     - pyenv
-    - vscode
+    - intellij
 
 # vim: et ts=2 sw=2:
