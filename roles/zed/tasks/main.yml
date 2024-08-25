@@ -1,0 +1,18 @@
+---
+# tasks file for roles/zed
+- block:
+    - name: Get ansible_user home directory
+      shell: 'getent passwd "{{ansible_env.SUDO_USER}}" | cut -d: -f6'
+      register: ansible_home_result
+
+    - name: Set the fact for the other scripts to use
+      set_fact: ansible_home='{{ansible_home_result.stdout}}'
+
+    - name: install_zed
+      shell: "curl -f https://zed.dev/install.sh | sh"
+      args:
+        creates: "{{ansible_home}}/.local/bin/zed"
+      become: no
+
+  tags:
+    - zed
