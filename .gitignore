@@ -3,3 +3,4 @@
 *~
 .idea
 group_vars/servers/99_private
+venv

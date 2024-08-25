@@ -2,12 +2,13 @@
   roles:
     - commons
     - git
+    - zed
     - vim
     - tmux
     - vim_config
     - bash
     - pip3
     - pyenv
-#    - vscode
+    - vscode
 
 # vim: et ts=2 sw=2:
