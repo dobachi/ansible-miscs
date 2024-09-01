@@ -1,0 +1,11 @@
+---
+# tasks file for roles/ipafont
+- block:
+
+  - name: install ipa font
+    apt:
+      name: fonts-ipafont
+      state: present
+
+  tags:
+    - ipafont

@@ -1,6 +1,7 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
     - commons
+    - ipafont
     - register_home
     - git
     - zed
