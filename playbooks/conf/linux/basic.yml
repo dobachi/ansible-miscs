@@ -4,8 +4,7 @@
     - ipafont
     - register_home
     - git
-    - zed
-    - vim
+      #    - zed
     - tmux
     - vim_config
     - bash

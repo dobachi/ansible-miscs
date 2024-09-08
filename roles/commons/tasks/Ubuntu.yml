@@ -9,6 +9,7 @@
     with_items:
       - curl
       - unzip
+      - vim
 
   - name: update editor
     alternatives:
