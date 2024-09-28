@@ -1,10 +1,10 @@
 ---
 # tasks file for roles/jan
 - block:
-  - name: install requirements
-    apt:
-      name: fuse
-      state: present
+  #- name: install requirements
+  #  apt:
+  #    name: fuse
+  #    state: present
 
   - name: mkdir Applications
     file:
