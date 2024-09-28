@@ -6,6 +6,7 @@
     - git
       #    - zed
     - tmux
+    - vim
     - vim_config
     - bash
     - pip3

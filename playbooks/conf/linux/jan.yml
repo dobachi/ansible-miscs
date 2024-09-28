@@ -1,0 +1,6 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - commons
+    - jan
+
+# vim: et ts=2 sw=2:
