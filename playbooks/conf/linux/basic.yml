@@ -1,8 +1,8 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
+    - register_home
     - commons
     - ipafont
-    - register_home
     - git
       #    - zed
     - tmux

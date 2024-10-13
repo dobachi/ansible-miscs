@@ -16,5 +16,18 @@
       name: editor
       path: /usr/bin/vim.basic
 
+  - name: mkdir ./local/bin
+    file:
+      path: "{{ansible_home}}/.local/bin"
+      state: directory
+      owner: "{{ansible_env.SUDO_USER}}"
+      group: "{{ansible_env.SUDO_USER}}"
+
+  - name: add ./local/bin to PATH
+    lineinfile:
+      path: "{{ansible_home}}/.bashrc"
+      state: present
+      line: "export PATH=$PATH:~/.local/bin"
+
   tags:
     - commons
