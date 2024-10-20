@@ -27,7 +27,7 @@
     - name: install_gpg_key
       shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
     - name: add_repository
-      shell: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+      shell: add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
     - name: install_dockerce
       package:
         name: "{{ packages }}"
@@ -41,11 +41,11 @@
       template:
         src: docker.sh.j2
         dest: /etc/profile.d/docker.sh
-    - name: downloads_docker-compose
-      get_url:
-        url: https://github.com/docker/compose/releases/download/1.24.0/docker-compose-Linux-x86_64
-        dest: /usr/local/bin/docker-compose
-        mode: 755
+    #- name: downloads_docker-compose
+    #  get_url:
+    #    url: https://github.com/docker/compose/releases/download/1.24.0/docker-compose-Linux-x86_64
+    #    dest: /usr/local/bin/docker-compose
+    #    mode: 755
 
   tags:
     - docker
