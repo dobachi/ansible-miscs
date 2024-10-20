@@ -1,14 +1,14 @@
 ---
 # tasks file for roles/jan
 - block:
-  #- name: install requirements
-  #  apt:
-  #    name: fuse
-  #    state: present
+  - name: install requirements
+    apt:
+      name: libfuse2
+      state: present
 
   - name: mkdir Applications
     file:
-      path: /home/{{ansible_env.SUDO_USER}}/Applications
+      path: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}"
       state: directory
       owner: "{{ansible_env.SUDO_USER}}"
       group: "{{ansible_env.SUDO_USER}}"
@@ -16,9 +16,24 @@
   - name: download package
     get_url:
       url: "https://github.com/janhq/jan/releases/download/v0.5.4/jan-linux-x86_64-{{jan_version}}.AppImage"
-      dest: "/home/{{ansible_env.SUDO_USER}}/Applications/jan-linux-x86_64-{{jan_version}}.AppImage"
+      dest: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
       owner: "{{ansible_env.SUDO_USER}}"
       group: "{{ansible_env.SUDO_USER}}"
-      mode: 0655
+      mode: 0755
+
+  - name: make symlink
+    file:
+      src: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
+      dest: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}/jan"
+      state: link
+      owner: "{{ansible_env.SUDO_USER}}"
+      group: "{{ansible_env.SUDO_USER}}"
+
+  - name: upadte alternatives
+    alternatives:
+      name: jan
+      path: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}"
+      link: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/default"
+
   tags:
     - jan
