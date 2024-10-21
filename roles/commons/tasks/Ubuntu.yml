@@ -29,5 +29,17 @@
       state: present
       line: "export PATH=$PATH:~/.local/bin"
 
+  - name: add GDK_SCALE
+    lineinfile:
+      path: "{{ansible_home}}/.bashrc"
+      state: present
+      line: "export GDK_SCALE=2"
+    
+  - name: add GDK_DPI_SCALE
+    lineinfile:
+      path: "{{ansible_home}}/.bashrc"
+      state: present
+      line: "export GDK_DPI_SCALE=0.75"
+
   tags:
     - commons
