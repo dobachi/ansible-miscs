@@ -12,5 +12,6 @@
     - pip3
     - pyenv
     - intellij
+    - pycharm
 
 # vim: et ts=2 sw=2:
