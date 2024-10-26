@@ -13,5 +13,6 @@
     - pyenv
     - intellij
     - pycharm
+    - goland
 
 # vim: et ts=2 sw=2:
