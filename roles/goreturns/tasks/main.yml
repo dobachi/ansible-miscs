@@ -1,0 +1,9 @@
+---
+# tasks file for roles/goreturns
+- block:
+  - name: install
+    shell: |
+      /usr/local/go/default/bin/go install github.com/sqs/goreturns@master
+
+  tags:
+    - goreturns

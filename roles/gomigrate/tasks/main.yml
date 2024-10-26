@@ -1,0 +1,27 @@
+---
+# tasks file for roles/gomigrate
+- block:
+  - name: mdkir
+    file:
+      path: /usr/local/go/migrate/{{gomigrate_version}}
+      state: directory
+  - name: download
+    get_url:
+      url: https://github.com/golang-migrate/migrate/releases/download/v{{gomigrate_version}}/migrate.linux-amd64.tar.gz
+      dest: /usr/local/go/migrate
+  - name: unarchive
+    unarchive:
+      src: /usr/local/go/migrate/migrate.linux-amd64.tar.gz
+      dest: /usr/local/go/migrate/{{gomigrate_version}}
+  - name: alternatives
+    alternatives:
+      name: gomigrate
+      path: /usr/local/go/migrate/{{gomigrate_version}}
+      link: /usr/local/go/migrate/default
+  - name: link
+    file:
+      dest: /usr/local/go/default/bin/migrate
+      src: /usr/local/go/migrate/default/migrate
+      state: link
+  tags:
+    - gomigrate

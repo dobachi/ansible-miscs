@@ -1,3 +1,4 @@
 ---
 # defaults file for roles/go
-go_version: "1.21.3"
+#go_version: "1.21.3"
+go_version: "1.19.13"

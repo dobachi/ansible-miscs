@@ -17,14 +17,14 @@
       src: /usr/local/go/go{{go_version}}.linux-amd64.tar.gz
       dest: /usr/local/go
       remote_src: yes
-      creates: /usr/local/go/go/bin/go
+      creates: /usr/local/go/{{go_version}}/bin/go
 
   - name: rename
     shell:
       cmd: mv /usr/local/go/go /usr/local/go/{{go_version}}
       creates: /usr/local/go/{{go_version}}/bin/go
 
-  - name: create_link
+  - name: alternatives
     alternatives:
       name: go
       link: /usr/local/go/default
