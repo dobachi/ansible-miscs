@@ -1,0 +1,9 @@
+---
+# tasks file for roles/minikube
+- block:
+  - name: install minikube
+    apt:
+      deb: https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb
+
+  tags:
+    - minikube
