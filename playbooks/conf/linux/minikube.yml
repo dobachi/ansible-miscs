@@ -1,4 +1,6 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
+    - register_home
     - docker
     - minikube
+    - helm

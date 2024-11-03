@@ -1,0 +1,56 @@
+---
+# tasks file for roles/helm
+- block:
+  - name: install gpg
+    shell: |
+      curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+  - name: install apt-transport-https 
+    apt:
+      name: apt-transport-https
+      state: present
+  - name: copy helm-stable-debian.list
+    template:
+      src: helm-stable-debian.list.j2
+      dest: /etc/apt/sources.list.d/helm-stable-debian.list
+  - name: install helm
+    apt:
+      name: helm
+      state: present
+      update_cache: yes
+  - name: initialize helm chart repository
+    shell: |
+      helm repo add stable https://charts.helm.sh/stable
+    become: no
+  - name: install helm-diff
+    shell: |
+      helm plugin install https://github.com/databus23/helm-diff
+    args:
+      creates: "{{ansible_home}}/.local/share/helm/plugins/helm-diff"  
+    become: no
+  - name: mkdir/usr/local/helmfile
+    file:
+      path: /usr/local/helmfile/{{helm_helmfile_version}}
+      state: directory
+  - name: download helmfile binary
+    get_url:
+      url: https://github.com/helmfile/helmfile/releases/download/v{{helm_helmfile_version}}/helmfile_{{helm_helmfile_version}}_linux_amd64.tar.gz
+      dest: /usr/local/helmfile/helmfile_{{helm_helmfile_version}}_linux_amd64.tar.gz
+  - name: unarchive helmfile
+    unarchive:
+      src: /usr/local/helmfile/helmfile_{{helm_helmfile_version}}_linux_amd64.tar.gz
+      dest: /usr/local/helmfile/{{helm_helmfile_version}}/
+      creates: /usr/local/helmfile/{{helm_helmfile_version}}/helmfile
+      remote_src: yes
+      creates: 
+  - name: alternatives helmfile
+    alternatives:
+      name: helmfile
+      path: /usr/local/helmfile/{{helm_helmfile_version}}
+      link: /usr/local/helmfile/default
+  - name: copy profile for helmfile
+    template:
+      src: helmfile.sh.j2
+      dest: /etc/profile.d/helmfile.sh
+
+  tags:
+    - helm
