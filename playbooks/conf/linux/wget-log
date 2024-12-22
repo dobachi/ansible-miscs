@@ -1,0 +1,11 @@
+--2024-12-22 16:06:38--  https://apt.releases.hashicorp.com/gpg
+apt.releases.hashicorp.com (apt.releases.hashicorp.com) をDNSに問いあわせています... 3.164.121.22, 3.164.121.81, 3.164.121.67, ...
+apt.releases.hashicorp.com (apt.releases.hashicorp.com)|3.164.121.22|:443 に接続しています... 接続しました。
+HTTP による接続要求を送信しました、応答を待っています... 200 OK
+長さ: 3980 (3.9K) [binary/octet-stream]
+‘STDOUT’ に保存中
+
+     0K ...                                                   100% 3.69G=0s
+
+2024-12-22 16:06:38 (3.69 GB/s) - stdout へ出力完了 [3980/3980]
+

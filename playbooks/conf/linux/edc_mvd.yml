@@ -1,4 +1,6 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
+    - common
     - kind
     - terraform
+    - jdk
