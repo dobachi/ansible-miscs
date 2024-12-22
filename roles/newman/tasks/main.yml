@@ -1,0 +1,11 @@
+---
+# tasks file for roles/newman
+- block:
+  - name: install newman
+    npm:
+      name: newman
+      state: present
+      global: yes
+
+  tags:
+    - newman
