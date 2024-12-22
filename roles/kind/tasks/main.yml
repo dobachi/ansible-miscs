@@ -1,31 +1,52 @@
 ---
 # tasks file for roles/kind
 - block:
+   - name: mkdir kind
+     file:
+       path: /usr/local/kind/{{kind_version}}
+       state: directory
+
+   - name: download kind
+     get_url:
+       url: https://kind.sigs.k8s.io/dl/{{kind_version}}/kind-linux-amd64
+       dest: /usr/local/kind/{{kind_version}}/kind
+       mode: 0755
+
+   - name: alternatives
+     alternatives:
+       name: kind
+       link: /usr/local/kind/default
+       path: /usr/local/kind/{{kind_version}}
+
+   - name: profile.d
+     template:
+       src: kind.sh.j2
+       dest: /etc/profile.d/kind.sh
   
-  - name: install_kind
-    shell:
-      cmd: go install sigs.k8s.io/kind@{{kind_version}}
-      creates: /home/{{ ansible_env.SUDO_USER }}/go/bin/kind
-    become: no
-
-  - name: PATH
-    lineinfile:
-      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
-      line: export PATH=$PATH:$HOME/go/bin
-
-  - name: mkdir_kind
-    file:
-      path: /home/{{ ansible_env.SUDO_USER }}/Sources/kind_conf
-      state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
-
-  - name: cluster_conf
-    template:
-      src: cluster-conf.yml.j2
-      dest: /home/{{ ansible_env.SUDO_USER }}/Sources/kind_conf/cluster-conf.yml
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+#  - name: install_kind
+#    shell:
+#      cmd: go install sigs.k8s.io/kind@{{kind_version}}
+#      creates: /home/{{ ansible_env.SUDO_USER }}/go/bin/kind
+#    become: no
+#
+#  - name: PATH
+#    lineinfile:
+#      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+#      line: export PATH=$PATH:$HOME/go/bin
+#
+#  - name: mkdir_kind
+#    file:
+#      path: /home/{{ ansible_env.SUDO_USER }}/Sources/kind_conf
+#      state: directory
+#      owner: "{{ ansible_env.SUDO_USER }}"
+#      group: "{{ ansible_env.SUDO_USER }}"
+#
+#  - name: cluster_conf
+#    template:
+#      src: cluster-conf.yml.j2
+#      dest: /home/{{ ansible_env.SUDO_USER }}/Sources/kind_conf/cluster-conf.yml
+#      owner: "{{ ansible_env.SUDO_USER }}"
+#      group: "{{ ansible_env.SUDO_USER }}"
 
   tags:
     - kind
