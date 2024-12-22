@@ -1,0 +1,24 @@
+---
+# tasks file for roles/postman
+- block:
+  - name: mkdir
+    file:
+      path: /usr/local/postman
+      state: directory
+
+  - name: download postman
+    get_url:
+      url: https://dl.pstmn.io/download/latest/linux_64
+      dest: /usr/local/postman/postman-linux-x64.tar.gz
+
+  - name: unarchive
+    unarchive:
+      src: /usr/local/postman/postman-linux-x64.tar.gz
+      dest: /usr/local/postman/
+
+  - name: profile.d
+    template:
+      src: postman.sh.j2
+      dest: /etc/profile.d/postman.sh
+  tags:
+    - postman

@@ -1,6 +1,8 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
-    - common
+    - register_home
+    - commons
     - kind
     - terraform
     - jdk
+    - postman
