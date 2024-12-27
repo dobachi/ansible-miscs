@@ -4,13 +4,13 @@
   
   - name: install_common_packages
     apt:
-      name: "{{ item }}"
-      state: latest
-    with_items:
-      - curl
-      - unzip
-      - vim
-      - openssl
+      name:
+        - curl
+        - unzip
+        - vim
+        - openssl
+        - jq
+      state: present
 
   - name: update editor
     alternatives:
