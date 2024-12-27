@@ -22,6 +22,35 @@
      template:
        src: kind.sh.j2
        dest: /etc/profile.d/kind.sh
+
+   - name: install requirements for kubectl
+     apt:
+       name:
+         - apt-transport-https
+         - ca-certificates
+         - curl
+         - gnupg
+       state: present
+
+   - name: donwload gpg keys
+     shell: |
+       curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+   - name: chmod gpg
+     file:
+       path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+       mode: 0644
+
+   - name: kubernetes.list
+     template:
+       src: kubernetes.list.j2
+       dest: /etc/apt/sources.list.d/kubernetes.list
+       mode: 0644
+   - name: install kubectl
+     apt:
+       name: kubectl
+       state: present
+       update_cache: yes
   
 #  - name: install_kind
 #    shell:
