@@ -1,0 +1,10 @@
+---
+# tasks file for roles/pinta
+- block:
+  - name: Install Pinta
+    apt:
+      name: pinta
+      state: present
+
+  tags:
+    - pinta

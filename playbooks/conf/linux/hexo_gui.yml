@@ -1,0 +1,11 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - commons
+    - git
+    - vim
+    - tmux
+    - hexo
+    - vim_config
+    - bash
+    - pinta
+    - vscode
