@@ -1,0 +1,48 @@
+---
+# tasks file for roles/japanese
+- block:
+  - name: install pakckages
+    apt:
+      name:
+        - locales
+        - language-pack-ja
+        - fcitx-bin
+        - fcitx-mozc
+        - dbus-x11
+        - fonts-noto-cjk
+        - fonts-ipafont
+        - fonts-takao
+
+  - name: Generate ja_JP.UTF-8 locale
+    locale_gen:
+      name: ja_JP.UTF-8
+      state: present
+    
+  - name: Set system locale
+    blockinfile:
+      dest: /etc/default/locale
+      block: |
+        LANG=ja_JP.UTF-8
+        LANGUAGE=ja_JP:ja
+        LC_ALL=ja_JP.UTF-8
+
+  - name: Set timezone to Asia/Tokyo
+    timezone:
+      name: Asia/Tokyo
+
+  - name: Reload system locale
+    command: locale-gen
+
+  - name: add .profile
+    blockinfile:
+      path: "{{ansible_home}}/.profile"
+      block: |
+        export GTK_IM_MODULE=fcitx
+        export QT_IM_MODULE=fcitx
+        export XMODIFIERS=@im=fcitx
+        export DefaultIMModule=fcitx
+        fcitx-autostart &> /dev/null 
+        
+
+  tags:
+    - japanese
