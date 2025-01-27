@@ -33,7 +33,7 @@
   - name: Reload system locale
     command: locale-gen
 
-  - name: add .profile
+  - name: add .profile about fcitx
     blockinfile:
       path: "{{ansible_home}}/.profile"
       block: |
@@ -42,7 +42,13 @@
         export XMODIFIERS=@im=fcitx
         export DefaultIMModule=fcitx
         fcitx-autostart &> /dev/null 
-        
+
+  - name: add .profile about GTK Scale
+    blockinfile:
+      path: "{{ansible_home}}/.profile"
+      block: |
+        export GDK_SCALE=2
+        export GDK_DPI_SCALE=0.75
 
   tags:
     - japanese
