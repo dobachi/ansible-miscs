@@ -1,0 +1,5 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - register_home
+    - commons
+    - japanese
