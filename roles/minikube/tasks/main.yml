@@ -1,0 +1,14 @@
+---
+# tasks file for roles/minikube
+- block:
+  - name: install minikube
+    apt:
+      deb: https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb
+
+  - name: create alias
+    template:
+      src: minikube.sh.j2
+      dest: /etc/profile.d/minikube.sh
+
+  tags:
+    - minikube

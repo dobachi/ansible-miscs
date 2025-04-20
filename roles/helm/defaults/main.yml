@@ -1,0 +1,3 @@
+---
+# defaults file for roles/helm
+helm_helmfile_version: "1.0.0-rc.7"

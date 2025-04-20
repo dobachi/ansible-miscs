@@ -1,0 +1,8 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - go
+    - golangci
+    - mockery
+    - goreturns
+    - gomigrate
+    - docker

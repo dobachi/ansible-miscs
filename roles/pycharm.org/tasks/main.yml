@@ -1,0 +1,33 @@
+---
+# tasks file for roles/pycharm
+
+- block:
+
+  - name: mkdir_Downloads
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/Downloads
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: downloads_tar
+    get_url:
+      url: https://download.jetbrains.com/python/pycharm-professional-{{pycharm_version}}.tar.gz
+      dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: mkdir_pycharm
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/PyCharm
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: unarchive_pycharm
+    unarchive: 
+      src: /home/{{ ansible_env.SUDO_USER }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
+      dest: /home/{{ ansible_env.SUDO_USER }}/PyCharm
+      remote_src: yes
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+
+  tags:
+    - pycharm

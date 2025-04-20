@@ -1,0 +1,3 @@
+---
+# defaults file for roles/golangci
+golangci_version:  v1.50.1

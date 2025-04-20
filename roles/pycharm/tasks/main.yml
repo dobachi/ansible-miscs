@@ -2,6 +2,12 @@
 # tasks file for roles/pycharm
 
 - block:
+  #- name: Get ansible_user home directory
+  #  shell: 'getent passwd "{{ansible_env.SUDO_USER}}" | cut -d: -f6'
+  #  register: ansible_home_result
+
+  #- name: Set the fact for the other scripts to use
+  #  set_fact: ansible_home='{{ansible_home_result.stdout}}'
 
   - name: mkdir_Downloads
     file:
@@ -11,7 +17,7 @@
       group: "{{ ansible_env.SUDO_USER }}"
   - name: downloads_tar
     get_url:
-      url: https://download.jetbrains.com/python/pycharm-professional-{{pycharm_version}}.tar.gz
+      url: https://download.jetbrains.com/python/pycharm-professional-{{ pycharm_version }}.tar.gz
       dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
       owner: "{{ ansible_env.SUDO_USER }}"
       group: "{{ ansible_env.SUDO_USER }}"
@@ -28,6 +34,17 @@
       remote_src: yes
       owner: "{{ ansible_env.SUDO_USER }}"
       group: "{{ ansible_env.SUDO_USER }}"
+      creates: "{{ansible_home}}/PyCharm/pycharm-{{ pycharm_directory }}"
+  - name: configure_alternatives
+    alternatives:
+      name: pycharm
+      path: "{{ansible_home}}/PyCharm/pycharm-{{ pycharm_directory }}/bin/pycharm.sh"
+      link: "{{ansible_home}}/.local/bin/pycharm"
+  - name: copy_ideavimrc
+    get_url:
+      url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc
+      dest: "{{ansible_home}}/.ideavimrc"
+    become: no
 
   tags:
     - pycharm

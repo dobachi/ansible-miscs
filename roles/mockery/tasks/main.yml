@@ -1,0 +1,34 @@
+---
+# tasks file for roles/mockery
+- block:
+
+  - name: mkdir
+    file:
+      path: /usr/local/go/mockery/{{mockery_version}}
+      state: directory
+
+  - name: download
+    get_url:
+      url: https://github.com/vektra/mockery/releases/download/v{{mockery_version}}/mockery_{{mockery_version}}_Linux_x86_64.tar.gz
+      dest: /usr/local/go/mockery
+
+  - name: unarchive
+    unarchive:
+      src: /usr/local/go/mockery/mockery_{{mockery_version}}_Linux_x86_64.tar.gz
+      dest: "/usr/local/go/mockery/{{mockery_version}}"
+      remote_src: yes
+      creates: /usr/local/mockery/{{mockery_version}}/mockery
+  - name: alternatives
+    alternatives:
+      name: mockery
+      link: /usr/local/go/mockery/default
+      path: /usr/local/go/mockery/{{mockery_version}}
+  - name: link
+    file:
+      dest: /usr/local/go/default/bin/mockery
+      src: /usr/local/go/mockery/default/mockery
+      state: link
+
+
+  tags:
+    - mockery

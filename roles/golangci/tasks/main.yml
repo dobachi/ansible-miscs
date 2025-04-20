@@ -1,0 +1,12 @@
+---
+# tasks file for roles/golangci
+- block:
+
+  - name: install
+    shell: |
+      /bin/bash -lc "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/go/default/bin {{golangci_version}}"
+    args:
+      creates: /usr/local/go/default/bin/golangci-lint
+
+  tags:
+    - golangci

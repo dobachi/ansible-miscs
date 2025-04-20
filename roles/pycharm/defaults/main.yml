@@ -1,3 +1,4 @@
 ---
 # defaults file for roles/pycharm
-pycharm_version: "2020.2.3"
+pycharm_version: "2024.2.3"
+pycharm_directory: "2024.2.3"
