@@ -34,17 +34,17 @@
         remote_src: yes
         owner: "{{ ansible_env.SUDO_USER }}"
         group: "{{ ansible_env.SUDO_USER }}"
-        creates: "{{ansible_home}}/Intellij/idea-IU-{{ android_studio_directory }}"
-    #- name: configure_alternatives
-    #  alternatives:
-    #    name: android_studio
-    #    path: "{{ansible_home}}/Intellij/idea-IU-{{ android_studio_directory }}/bin/idea.sh"
-    #    link: "{{ansible_home}}/.local/bin/idea"
-    #- name: copy_ideavimrc
-    #  get_url:
-    #    url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc
-    #    dest: "{{ansible_home}}/.ideavimrc"
-    #  become: no
+        creates: "{{ansible_home}}/AndroidStudio/android-studio"
+    - name: configure_alternatives
+      alternatives:
+        name: android_studio
+        path: "{{ansible_home}}/AndroidStudio/android-studio/bin/studio.sh"
+        link: "{{ansible_home}}/.local/bin/studio"
+    - name: copy_ideavimrc
+      get_url:
+        url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc
+        dest: "{{ansible_home}}/.ideavimrc"
+      become: no
 
   tags:
     - android_studio

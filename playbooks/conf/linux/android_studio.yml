@@ -1,5 +1,6 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
+    - register_home
     - android_studio
 
 # vim: et ts=2 sw=2:
