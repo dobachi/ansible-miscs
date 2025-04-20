@@ -1,0 +1,50 @@
+---
+# tasks file for roles/android_studio
+
+- block:
+    #- name: Get ansible_user home directory
+    #  shell: 'getent passwd "{{ansible_env.SUDO_USER}}" | cut -d: -f6'
+    #  register: ansible_home_result
+
+    #- name: Set the fact for the other scripts to use
+    #  set_fact: ansible_home='{{ansible_home_result.stdout}}'
+
+    - name: mkdir_Downloads
+      file:
+        path: /home/{{ ansible_env.SUDO_USER }}/Downloads
+        state: directory
+        owner: "{{ ansible_env.SUDO_USER }}"
+        group: "{{ ansible_env.SUDO_USER }}"
+    - name: downloads_tar
+      get_url:
+        url: https://redirector.gvt1.com/edgedl/android/studio/ide-zips/{{ android_studio_version }}/android-studio-{{ android_studio_version }}-linux.tar.gz
+        dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/android-studio-{{ android_studio_version }}-linux.tar.gz
+        owner: "{{ ansible_env.SUDO_USER }}"
+        group: "{{ ansible_env.SUDO_USER }}"
+    - name: mkdir_android_studio
+      file:
+        path: /home/{{ ansible_env.SUDO_USER }}/AndroidStudio
+        state: directory
+        owner: "{{ ansible_env.SUDO_USER }}"
+        group: "{{ ansible_env.SUDO_USER }}"
+    - name: unarchive_android_studio
+      unarchive:
+        src: /home/{{ ansible_env.SUDO_USER }}/Downloads/android-studio-{{ android_studio_version }}-linux.tar.gz
+        dest: /home/{{ ansible_env.SUDO_USER }}/AndroidStudio
+        remote_src: yes
+        owner: "{{ ansible_env.SUDO_USER }}"
+        group: "{{ ansible_env.SUDO_USER }}"
+        creates: "{{ansible_home}}/Intellij/idea-IU-{{ android_studio_directory }}"
+    #- name: configure_alternatives
+    #  alternatives:
+    #    name: android_studio
+    #    path: "{{ansible_home}}/Intellij/idea-IU-{{ android_studio_directory }}/bin/idea.sh"
+    #    link: "{{ansible_home}}/.local/bin/idea"
+    #- name: copy_ideavimrc
+    #  get_url:
+    #    url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc
+    #    dest: "{{ansible_home}}/.ideavimrc"
+    #  become: no
+
+  tags:
+    - android_studio

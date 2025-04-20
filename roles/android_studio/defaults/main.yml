@@ -1,0 +1,5 @@
+---
+# defaults file for roles/android_studio
+android_studio_version: "2024.3.1.14"
+android_studio_directory: "241.18034.62"
+
