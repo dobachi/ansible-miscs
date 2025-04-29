@@ -1,0 +1,46 @@
+---
+# tasks file for roles/commons
+- block:
+  
+  - name: install_common_packages
+    apt:
+      name:
+        - curl
+        - unzip
+        - vim
+        - openssl
+        - jq
+      state: present
+
+  - name: update editor
+    alternatives:
+      name: editor
+      path: /usr/bin/vim.basic
+
+  - name: mkdir ./local/bin
+    file:
+      path: "{{ansible_home}}/.local/bin"
+      state: directory
+      owner: "{{ansible_env.SUDO_USER}}"
+      group: "{{ansible_env.SUDO_USER}}"
+
+  - name: add ./local/bin to PATH
+    lineinfile:
+      path: "{{ansible_home}}/.bashrc"
+      state: present
+      line: "export PATH=$PATH:~/.local/bin"
+
+        #  - name: add GDK_SCALE
+        #    lineinfile:
+        #      path: "{{ansible_home}}/.bashrc"
+        #      state: present
+        #      line: "export GDK_SCALE=2"
+        #    
+        #  - name: add GDK_DPI_SCALE
+        #    lineinfile:
+        #      path: "{{ansible_home}}/.bashrc"
+        #      state: present
+        #      line: "export GDK_DPI_SCALE=0.75"
+
+  tags:
+    - commons

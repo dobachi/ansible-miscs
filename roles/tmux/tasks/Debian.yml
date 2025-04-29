@@ -1,0 +1,20 @@
+---
+# tasks file for roles/tmux
+
+- block:
+
+  - name: install_tmux
+    apt:
+      name: tmux
+      state: present
+
+  - name: "install tmux config for user"
+    template:
+      dest: /home/{{ ansible_env.SUDO_USER }}/.tmux.conf
+      src: tmux.conf.j2
+    tags:
+      - tmux_conf
+    become: no
+
+  tags:
+    - tmux

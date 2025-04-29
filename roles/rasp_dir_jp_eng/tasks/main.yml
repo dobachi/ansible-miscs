@@ -1,0 +1,10 @@
+---
+# tasks file for roles/rasp_dir_jp_eng
+- block:
+  - name: install xdg-user-dirs-gtk
+    apt:
+      name: xdg-user-dirs-gtk
+      state: present
+
+  tags:
+    - rasp_dir_jp_eng

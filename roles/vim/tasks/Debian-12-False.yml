@@ -1,0 +1,12 @@
+---
+# tasks file for roles/vim
+
+- block:
+
+  - name: install_vim
+    package:
+      name: vim
+      state: present
+
+  tags:
+    - vim
