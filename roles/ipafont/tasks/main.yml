@@ -7,5 +7,10 @@
       name: fonts-ipafont
       state: present
 
+  - name: install noto font
+    apt:
+      name: fonts-noto
+      state: present
+
   tags:
     - ipafont
