@@ -1,0 +1,16 @@
+---
+# tasks file for roles/keyboard_nocaps
+
+- block:
+  - name: copy jp
+    template:
+      src: jp.j2
+      dest: /usr/share/X11/xkb/symbols/jp
+
+  - name: copy us
+    template:
+      src: us.j2
+      dest: /usr/share/X11/xkb/symbols/us
+
+  tags:
+    - keyboard_nocaps

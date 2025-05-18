@@ -9,6 +9,7 @@
     - tmux
     - vim
     - vim_config
+    - keyboard_nocaps
       #- bash
       #- pip3
       #- pyenv
