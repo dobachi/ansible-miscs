@@ -1,0 +1,10 @@
+---
+# tasks file for hosts
+- block:
+  - name: copy hosts
+    template:
+      src: hosts.local.j2
+      dest: /etc/hosts
+
+  tags:
+    - hosts

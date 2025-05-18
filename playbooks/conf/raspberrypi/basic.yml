@@ -1,6 +1,7 @@
 - hosts: "{{ server | default('wsl') }}"
   roles:
     - register_home
+    - hosts
     - rasp_dir_jp_eng
     - commons
     - ipafont
