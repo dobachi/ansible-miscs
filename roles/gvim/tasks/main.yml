@@ -21,3 +21,14 @@
   tags:
     - gvim
   when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"
+
+- block:
+
+  - name: install_gvim
+    apt:
+      name: vim-gui-common
+      state: present
+
+  tags:
+    - gvim
+  when: ansible_distribution == "Debian" and ansible_distribution_major_version == "12"
