@@ -1,0 +1,50 @@
+---
+# tasks file for roles/clion
+
+- block:
+  #- name: Get ansible_user home directory
+  #  shell: 'getent passwd "{{ansible_env.SUDO_USER}}" | cut -d: -f6'
+  #  register: ansible_home_result
+
+  #- name: Set the fact for the other scripts to use
+  #  set_fact: ansible_home='{{ansible_home_result.stdout}}'
+
+  - name: mkdir_Downloads
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/Downloads
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: downloads_tar
+    get_url:
+      url: https://download.jetbrains.com/cpp/CLion-{{ clion_version }}.tar.gz
+      dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/CLion-{{ clion_version }}.tar.gz
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: mkdir_clion
+    file:
+      path: /home/{{ ansible_env.SUDO_USER }}/CLion
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: unarchive_clion
+    unarchive: 
+      src: /home/{{ ansible_env.SUDO_USER }}/Downloads/CLion-{{ clion_version }}.tar.gz
+      dest: /home/{{ ansible_env.SUDO_USER }}/CLion
+      remote_src: yes
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+      creates: "{{ansible_home}}/CLion/clion-{{ clion_directory }}"
+  - name: configure_alternatives
+    alternatives:
+      name: clion
+      path: "{{ansible_home}}/CLion/clion-{{ clion_directory }}/bin/clion"
+      link: "{{ansible_home}}/.local/bin/clion"
+  - name: copy_ideavimrc
+    get_url:
+      url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc
+      dest: "{{ansible_home}}/.ideavimrc"
+    become: no
+
+  tags:
+    - clion

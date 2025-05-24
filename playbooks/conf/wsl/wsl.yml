@@ -1,5 +1,8 @@
 - hosts: "{{ server | default('localhost') }}"
   roles:
+    - register_home
+    - commons
+    - ipafont
     - git
     - tmux
     - pandoc
@@ -9,4 +12,9 @@
     - vim_config
     - create_links
     - intellij
+    - pycharm
+    - goland
+    - clion
+    - pip3
+    - pyenv
     - bash

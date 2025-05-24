@@ -1,0 +1,4 @@
+---
+# defaults file for roles/clion
+clion_version: "2025.1.1"
+clion_directory: "2025.1.1"
