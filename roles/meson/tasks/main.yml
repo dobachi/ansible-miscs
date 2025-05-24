@@ -1,0 +1,10 @@
+---
+# tasks file for roles/meson
+- block:
+    - name: install meson
+      apt:
+        name: meson
+        state: present
+
+  tags:
+    - meson
