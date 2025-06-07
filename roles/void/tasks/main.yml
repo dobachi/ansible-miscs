@@ -1,0 +1,37 @@
+---
+# tasks file for roles/void
+- block:
+  - name: mkdir_Downloads
+    file:
+      path: "{{ ansible_home }}/Downloads"
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: download package
+    get_url:
+      url: "https://github.com/voideditor/binaries/releases/download/{{ void_version }}/Void-linux-x64-{{ void_version }}.tar.gz"
+      dest: "{{ansible_home}}/Downloads/Void-linux-x64-{{ void_version }}.tar.gz"
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: mkdir_void
+    file:
+      path: "{{ ansible_home }}/Void/{{ void_version }}"
+      state: directory
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+  - name: unarchive_package
+    unarchive: 
+      src: "{{ ansible_home }}/Downloads/Void-linux-x64-{{ void_version }}.tar.gz"
+      dest: "{{ ansible_home }}/Void/{{ void_version }}"
+      remote_src: yes
+      owner: "{{ ansible_env.SUDO_USER }}"
+      group: "{{ ansible_env.SUDO_USER }}"
+      creates: "{{ansible_home}}/Void/{{ void_version }}/bin/void"
+  - name: configure_alternatives
+    alternatives:
+      name: void
+      path: "{{ansible_home}}/Void/{{ void_version }}/bin/void"
+      link: "{{ansible_home}}/.local/bin/void"
+
+  tags:
+    - void
