@@ -3,7 +3,9 @@
 - block:
   - name: install requirements
     apt:
-      name: libfuse2
+      name:
+        - libfuse2
+        - libnss3
       state: present
 
   - name: mkdir Applications
@@ -15,7 +17,7 @@
 
   - name: download package
     get_url:
-      url: "https://github.com/janhq/jan/releases/download/v0.5.4/jan-linux-x86_64-{{jan_version}}.AppImage"
+      url: "https://github.com/janhq/jan/releases/download/v{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
       dest: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
       owner: "{{ansible_env.SUDO_USER}}"
       group: "{{ansible_env.SUDO_USER}}"
