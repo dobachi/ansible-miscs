@@ -38,7 +38,7 @@
   - name: configure_alternatives
     alternatives:
       name: pycharm
-      path: "{{ansible_home}}/PyCharm/pycharm-{{ pycharm_directory }}/bin/pycharm.sh"
+      path: "{{ansible_home}}/PyCharm/pycharm-{{ pycharm_directory }}/bin/pycharm"
       link: "{{ansible_home}}/.local/bin/pycharm"
   - name: copy_ideavimrc
     get_url:
