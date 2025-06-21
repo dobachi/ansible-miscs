@@ -2,7 +2,7 @@
   roles:
     - register_home
     - commons
-    - docker
+#    - docker
     - kind
     - terraform
     - jdk
