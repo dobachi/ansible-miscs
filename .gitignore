@@ -5,3 +5,10 @@
 group_vars/servers/99_private
 venv
 hosts.local
+instructions/ai_instruction_kits/
+.openhands/
+.claude/
+
+# Git worktree directories
+.gitworktrees/
+gitworktrees/

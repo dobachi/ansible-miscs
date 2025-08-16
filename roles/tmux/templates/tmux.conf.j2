@@ -27,6 +27,11 @@ bind-key % split-window -h -c "#{pane_current_path}"
 unbind '"'
 bind-key '"' split-window -v -c "#{pane_current_path}"
 
+
+# split even
+
+set-hook -g client-resized 'select-layout tiled'
+
 {% if ansible_distribution_major_version == "16" %}
 bind-key -t vi-copy v begin-selection
 bind-key -t vi-copy C-v rectangle-toggle
