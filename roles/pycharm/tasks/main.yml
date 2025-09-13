@@ -9,6 +9,12 @@
   #- name: Set the fact for the other scripts to use
   #  set_fact: ansible_home='{{ansible_home_result.stdout}}'
 
+  - name: install_zstd_for_extraction
+    package:
+      name: zstd
+      state: present
+    when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"
+
   - name: mkdir_Downloads
     file:
       path: /home/{{ ansible_env.SUDO_USER }}/Downloads
@@ -21,6 +27,8 @@
       dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
       owner: "{{ ansible_env.SUDO_USER }}"
       group: "{{ ansible_env.SUDO_USER }}"
+      timeout: 300
+      force: yes
   - name: mkdir_pycharm
     file:
       path: /home/{{ ansible_env.SUDO_USER }}/PyCharm
