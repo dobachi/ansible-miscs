@@ -1,46 +1,69 @@
 ---
-# tasks file for roles/docker
+# tasks file for roles/docker (native Ubuntu Docker Engine)
 
 - block:
-    - name: Update apt package index
+    - name: Install prerequisite packages
       apt:
-        update_cache: yes
-
-    - name: Install packages to allow apt to use a repository over HTTPS
-      apt:
-        name: 
+        name:
           - apt-transport-https
           - ca-certificates
           - curl
-          - software-properties-common
+          - gnupg
+          - lsb-release
         state: present
-
-    - name: Add Docker's official GPG key
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
-
-    - name: Add Docker repository
-      apt_repository:
-        #repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
-        state: present
-
-    - name: Update apt package index again
-      apt:
         update_cache: yes
 
-    - name: Install Docker CE
-      apt:
-        name:
-          - docker-ce
-          - docker-compose
-        state: present
+    - name: Ensure apt keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
 
-    - name: Ensure Docker service is running
+    - name: Add Docker's official GPG key (signed-by keyring)
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+        force: no
+
+    - name: Add Docker apt repository
+      apt_repository:
+        repo: "deb [arch={{ ansible_architecture | replace('x86_64','amd64') | replace('aarch64','arm64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        filename: docker
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Engine and plugins
+      apt:
+        name: "{{ docker_packages }}"
+        state: present
+      vars:
+        docker_packages: >-
+          {{
+            ['docker-ce', 'docker-ce-cli', 'containerd.io']
+            + (['docker-compose-plugin'] if docker_install_compose_plugin else [])
+            + (['docker-buildx-plugin'] if docker_install_buildx_plugin else [])
+          }}
+      notify: restart docker
+
+    - name: Ensure Docker service is enabled and running
       service:
         name: docker
         state: started
         enabled: yes
+
+    - name: Add users to the docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+      when: docker_users | length > 0
+
+    - name: Install shell aliases
+      template:
+        src: docker.sh.j2
+        dest: /etc/profile.d/docker.sh
+        mode: '0644'
   tags:
     - docker

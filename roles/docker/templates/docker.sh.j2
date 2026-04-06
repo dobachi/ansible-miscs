@@ -1,3 +1,3 @@
-# export DOCKER_HOST=tcp://localhost:2375
-alias sdocker="sudo -i docker"
-alias sdocker-compose="sudo -i docker-compose"
+# Native Linux Docker Engine uses the unix socket (/var/run/docker.sock).
+# Members of the `docker` group can run `docker` without sudo.
+alias dc='docker compose'

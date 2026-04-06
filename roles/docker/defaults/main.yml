@@ -1,2 +1,12 @@
 ---
 # defaults file for roles/docker
+
+# Users to add to the docker group (native Linux Docker Engine).
+# Override via -e or group_vars. Defaults to the SSH/become user.
+docker_users: "{{ [ansible_user_id] if ansible_user_id != 'root' else [] }}"
+
+# Whether to install the Compose v2 plugin (`docker compose`)
+docker_install_compose_plugin: true
+
+# Whether to install the buildx plugin
+docker_install_buildx_plugin: true
