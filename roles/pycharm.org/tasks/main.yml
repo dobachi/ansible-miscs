@@ -5,29 +5,29 @@
 
   - name: mkdir_Downloads
     file:
-      path: /home/{{ ansible_env.SUDO_USER }}/Downloads
+      path: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads
       state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: downloads_tar
     get_url:
       url: https://download.jetbrains.com/python/pycharm-professional-{{pycharm_version}}.tar.gz
-      dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: mkdir_pycharm
     file:
-      path: /home/{{ ansible_env.SUDO_USER }}/PyCharm
+      path: /home/{{ ansible_facts['env']['SUDO_USER'] }}/PyCharm
       state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: unarchive_pycharm
     unarchive: 
-      src: /home/{{ ansible_env.SUDO_USER }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
-      dest: /home/{{ ansible_env.SUDO_USER }}/PyCharm
+      src: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/pycharm-professional-{{ pycharm_version }}.tar.gz
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/PyCharm
       remote_src: yes
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
 
   tags:
     - pycharm

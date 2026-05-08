@@ -10,7 +10,7 @@
 
   - name: "install tmux config for user"
     template:
-      dest: /home/{{ ansible_env.SUDO_USER }}/.tmux.conf
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/.tmux.conf
       src: tmux.conf.j2
     tags:
       - tmux_conf

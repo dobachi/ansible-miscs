@@ -4,15 +4,15 @@
 
   - name: mkdir_Sources
     file:
-      path: /home/{{ ansible_env.USER }}/Sources
+      path: /home/{{ ansible_facts['env']['USER'] }}/Sources
       state: directory
-      owner: "{{ ansible_env.USER }}"
-      group: "{{ ansible_env.USER }}"
+      owner: "{{ ansible_facts['env']['USER'] }}"
+      group: "{{ ansible_facts['env']['USER'] }}"
     become: no
   - name: clone_sources
     git:
       repo: "{{ item.value }}"
-      dest: /home/{{ ansible_env.USER }}/Sources/{{ item.key }}
+      dest: /home/{{ ansible_facts['env']['USER'] }}/Sources/{{ item.key }}
     with_dict:
       spark: https://github.com/apache/spark.git
       kafka: https://github.com/apache/kafka.git

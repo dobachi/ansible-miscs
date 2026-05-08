@@ -3,57 +3,57 @@
 - block:
 
   - name: if_Sources_exists
-    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Sources ]"
+    shell: "[ -d /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Sources ]"
     register: result
     ignore_errors: yes
   - name: link_Sources
     file:
-      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Sources
-      dest: /home/{{ ansible_env.SUDO_USER }}/Sources.win
+      src: /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Sources
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Sources.win
       state: link
     when: result.rc == 0
 
   - name: if_Downloads_exists
-    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Downloads ]"
+    shell: "[ -d /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads ]"
     register: result
     ignore_errors: yes
   - name: link_Downloads
     file:
-      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Downloads
-      dest: /home/{{ ansible_env.SUDO_USER }}/Downloads.win
+      src: /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads.win
       state: link
     when: result.rc == 0
 
   - name: if_Programs_exists
-    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Programs ]"
+    shell: "[ -d /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Programs ]"
     register: result
     ignore_errors: yes
   - name: link_Programs
     file:
-      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Programs
-      dest: /home/{{ ansible_env.SUDO_USER }}/Programs.win
+      src: /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Programs
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Programs.win
       state: link
     when: result.rc == 0
 
   - name: if_Program_exists
-    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Program ]"
+    shell: "[ -d /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Program ]"
     register: result
     ignore_errors: yes
   - name: link_Program
     file:
-      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/Program
-      dest: /home/{{ ansible_env.SUDO_USER }}/Program.win
+      src: /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/Program
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Program.win
       state: link
     when: result.rc == 0
 
   - name: if_OneDrive_exists
-    shell: "[ -d /mnt/c/Users/{{ ansible_env.SUDO_USER }}/OneDrive ]"
+    shell: "[ -d /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/OneDrive ]"
     register: result
     ignore_errors: yes
   - name: link_OneDrive
     file:
-      src: /mnt/c/Users/{{ ansible_env.SUDO_USER }}/OneDrive
-      dest: /home/{{ ansible_env.SUDO_USER }}/OneDrive.win
+      src: /mnt/c/Users/{{ ansible_facts['env']['SUDO_USER'] }}/OneDrive
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/OneDrive.win
       state: link
     when: result.rc == 0
 

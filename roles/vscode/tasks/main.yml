@@ -1,4 +1,4 @@
 ---
 # tasks file for vscode
 
-- include_tasks: "{{ansible_distribution}}.yml"
+- include_tasks: "{{ansible_facts['distribution']}}.yml"

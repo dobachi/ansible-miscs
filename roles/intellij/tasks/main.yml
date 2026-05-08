@@ -3,7 +3,7 @@
 
 - block:
   #- name: Get ansible_user home directory
-  #  shell: 'getent passwd "{{ansible_env.SUDO_USER}}" | cut -d: -f6'
+  #  shell: 'getent passwd "{{ansible_facts['env']['SUDO_USER']}}" | cut -d: -f6'
   #  register: ansible_home_result
 
   #- name: Set the fact for the other scripts to use
@@ -11,29 +11,29 @@
 
   - name: mkdir_Downloads
     file:
-      path: /home/{{ ansible_env.SUDO_USER }}/Downloads
+      path: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads
       state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: downloads_tar
     get_url:
       url: https://download.jetbrains.com/idea/ideaIU-{{ intellij_version }}.tar.gz
-      dest: /home/{{ ansible_env.SUDO_USER }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: mkdir_intellij
     file:
-      path: /home/{{ ansible_env.SUDO_USER }}/Intellij
+      path: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Intellij
       state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: unarchive_intellij
     unarchive: 
-      src: /home/{{ ansible_env.SUDO_USER }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
-      dest: /home/{{ ansible_env.SUDO_USER }}/Intellij
+      src: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
+      dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Intellij
       remote_src: yes
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
       creates: "{{ansible_home}}/Intellij/idea-IU-{{ intellij_directory }}"
   - name: configure_alternatives
     alternatives:

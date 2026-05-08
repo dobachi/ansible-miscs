@@ -10,32 +10,32 @@
 
   - name: mkdir Applications
     file:
-      path: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}"
+      path: "/home/{{ansible_facts['env']['SUDO_USER']}}/Applications/jan/{{jan_version}}"
       state: directory
-      owner: "{{ansible_env.SUDO_USER}}"
-      group: "{{ansible_env.SUDO_USER}}"
+      owner: "{{ansible_facts['env']['SUDO_USER']}}"
+      group: "{{ansible_facts['env']['SUDO_USER']}}"
 
   - name: download package
     get_url:
       url: "https://github.com/janhq/jan/releases/download/v{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
-      dest: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
-      owner: "{{ansible_env.SUDO_USER}}"
-      group: "{{ansible_env.SUDO_USER}}"
+      dest: "/home/{{ansible_facts['env']['SUDO_USER']}}/Applications/jan/{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
+      owner: "{{ansible_facts['env']['SUDO_USER']}}"
+      group: "{{ansible_facts['env']['SUDO_USER']}}"
       mode: 0755
 
   - name: make symlink
     file:
-      src: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
-      dest: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}/jan"
+      src: "/home/{{ansible_facts['env']['SUDO_USER']}}/Applications/jan/{{jan_version}}/jan-linux-x86_64-{{jan_version}}.AppImage"
+      dest: "/home/{{ansible_facts['env']['SUDO_USER']}}/Applications/jan/{{jan_version}}/jan"
       state: link
-      owner: "{{ansible_env.SUDO_USER}}"
-      group: "{{ansible_env.SUDO_USER}}"
+      owner: "{{ansible_facts['env']['SUDO_USER']}}"
+      group: "{{ansible_facts['env']['SUDO_USER']}}"
 
   - name: upadte alternatives
     alternatives:
       name: jan
-      path: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/{{jan_version}}"
-      link: "/home/{{ansible_env.SUDO_USER}}/Applications/jan/default"
+      path: "/home/{{ansible_facts['env']['SUDO_USER']}}/Applications/jan/{{jan_version}}"
+      link: "/home/{{ansible_facts['env']['SUDO_USER']}}/Applications/jan/default"
 
   tags:
     - jan

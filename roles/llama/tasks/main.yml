@@ -5,27 +5,27 @@
     file:
       path: "{{ ansible_home }}/Downloads"
       state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: download package
     get_url:
       url: https://github.com/ggml-org/llama.cpp/releases/download/{{ llama_version }}/llama-{{ llama_version }}-bin-ubuntu-x64.zip
       dest: "{{ansible_home}}/Downloads/llama-{{ llama_version }}-bin-ubuntu-x64.zip"
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: mkdir_void
     file:
       path: "{{ ansible_home }}/Llama/{{ llama_version }}"
       state: directory
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
   - name: unarchive_package
     unarchive: 
       src: "{{ ansible_home }}/Downloads/llama-{{ llama_version }}-bin-ubuntu-x64.zip"
       dest: "{{ ansible_home }}/Llama/{{ llama_version }}"
       remote_src: yes
-      owner: "{{ ansible_env.SUDO_USER }}"
-      group: "{{ ansible_env.SUDO_USER }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
       #creates: "{{ansible_home}}/Llama/{{ llama_version }}/bin/void"
   #- name: configure_alternatives
   #  alternatives:

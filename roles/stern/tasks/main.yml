@@ -6,11 +6,11 @@
   - name: install_stern
     shell:
       cmd: go install github.com/stern/stern@latest
-      creates: /home/{{ ansible_env.SUDO_USER }}/go/bin/stern
+      creates: /home/{{ ansible_facts['env']['SUDO_USER'] }}/go/bin/stern
 
   - name: PATH
     lineinfile:
-      path: /home/{{ ansible_env.SUDO_USER }}/.bashrc
+      path: /home/{{ ansible_facts['env']['SUDO_USER'] }}/.bashrc
       line: export PATH=$PATH:$HOME/go/bin
 
   tags:

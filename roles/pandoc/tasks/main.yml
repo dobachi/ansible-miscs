@@ -19,7 +19,7 @@
 
   tags:
     - pandoc
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "22"
+  when: ansible_facts['distribution'] == "Ubuntu" and ansible_facts['distribution_major_version'] == "22"
 
 
 # Ubuntu18
@@ -40,7 +40,7 @@
 
   tags:
     - pandoc
-  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "18"
+  when: ansible_facts['distribution'] == "Ubuntu" and ansible_facts['distribution_major_version'] == "18"
 
 # CentOS7
 - block:
@@ -75,7 +75,7 @@
 
   tags:
     - pandoc
-  when: ansible_distribution == "CentOS" and ansible_distribution_major_version == "7"
+  when: ansible_facts['distribution'] == "CentOS" and ansible_facts['distribution_major_version'] == "7"
 
 
 # vim: set et ts=2 sw=2 tw=2:
