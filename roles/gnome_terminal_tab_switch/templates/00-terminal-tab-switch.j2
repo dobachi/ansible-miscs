@@ -9,7 +9,9 @@ prev-tab='{{ gnome_terminal_tab_switch_prev }}'
 {% endif %}
 {% if gnome_terminal_tab_switch_apply_ptyxis %}
 
-[org/gnome/Ptyxis]
-shortcut-tab-next='{{ gnome_terminal_tab_switch_next }}'
-shortcut-tab-previous='{{ gnome_terminal_tab_switch_prev }}'
+# Ptyxis shortcuts live under the Shortcuts subschema
+# (schema: org.gnome.Ptyxis.Shortcuts).
+[org/gnome/Ptyxis/Shortcuts]
+move-next-tab='{{ gnome_terminal_tab_switch_next }}'
+move-previous-tab='{{ gnome_terminal_tab_switch_prev }}'
 {% endif %}
