@@ -1,0 +1,18 @@
+galaxy_info:
+  author: dobachi
+  description: Swap Caps Lock and Ctrl on Ubuntu desktop (GNOME/Wayland) and console
+  license: BSD-3-Clause
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+        - resolute
+  galaxy_tags:
+    - keyboard
+    - gnome
+    - wayland
+    - ubuntu
+
+dependencies: []

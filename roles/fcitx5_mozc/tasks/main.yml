@@ -1,0 +1,262 @@
+---
+# tasks file for roles/fcitx5_mozc
+#
+# Installs fcitx5 + fcitx5-mozc on Ubuntu desktop (target: 26.04 LTS, Wayland).
+# Beyond just installing the packages, this role wires up everything needed
+# for Ctrl+Space to actually toggle Japanese / English on a freshly switched
+# host, so the user does not have to chase six small things by hand.
+#
+# Pre-flight: detect existing IM and refuse to overwrite unless force flag set.
+
+- block:
+    - name: Detect currently active IM (im-config)
+      command: im-config -m
+      register: fcitx5_mozc_current_im
+      changed_when: false
+      failed_when: false
+
+    - name: Detect installed IM frameworks
+      shell: |
+        set -e
+        dpkg -l 2>/dev/null | awk '/^ii/ {print $2}' | \
+          grep -E '^(ibus|fcitx|fcitx5|uim|nimf|scim)(-|$)' || true
+      register: fcitx5_mozc_installed_ims
+      changed_when: false
+
+    - name: Check whether ibus-daemon is running
+      shell: pgrep -x ibus-daemon || true
+      register: fcitx5_mozc_ibus_running
+      changed_when: false
+
+    # The user's ACTUAL selection lives in ~/.xinputrc (`run_im <name>`).
+    # This is what matters for the safety check; `im-config -m` mixes user
+    # / system / resolved layers and reports "ibus" when the user is on
+    # "default" but the system default is ibus -- which is fine to overwrite.
+    - name: Detect per-user IM selection from ~/.xinputrc
+      shell: |
+        if [ -r "{{ fcitx5_mozc_user_home }}/.xinputrc" ]; then
+          grep -m1 '^run_im' "{{ fcitx5_mozc_user_home }}/.xinputrc" \
+            | awk '{print $2}'
+        fi
+      register: fcitx5_mozc_user_im
+      changed_when: false
+      when: fcitx5_mozc_user_home is defined
+
+    - name: Show detected IM environment
+      debug:
+        msg:
+          - "User selection (~/.xinputrc) : {{ fcitx5_mozc_user_im.stdout | default('(not set)') }}"
+          - "im-config -m raw output      : {{ fcitx5_mozc_current_im.stdout_lines | default([]) }}"
+          - "Installed IM packages        : {{ fcitx5_mozc_installed_ims.stdout_lines | default([]) }}"
+          - "ibus-daemon running          : {{ 'yes' if fcitx5_mozc_ibus_running.stdout else 'no' }}"
+
+    # Pass when the user has not selected anything yet, or has already
+    # selected fcitx5. Halt only when they explicitly chose another IM.
+    - name: Refuse to overwrite existing per-user non-fcitx5 IM unless forced
+      assert:
+        that:
+          - fcitx5_mozc_force_switch | bool
+            or (fcitx5_mozc_user_im.stdout | default('') | trim) in ['', 'fcitx5']
+        fail_msg: >-
+          The user "{{ fcitx5_mozc_user | default('?') }}" has already
+          selected "{{ fcitx5_mozc_user_im.stdout | default('') | trim }}"
+          as their input method (~/.xinputrc). Re-run with
+          -e fcitx5_mozc_force_switch=true to switch to fcitx5.
+          Existing user dictionaries / custom keymaps will NOT be migrated.
+
+  tags:
+    - fcitx5_mozc
+    - fcitx5_mozc_check
+
+# ---------------------------------------------------------------------------
+# System-wide installation
+# ---------------------------------------------------------------------------
+
+- block:
+    - name: Install fcitx5 + mozc + frontend packages
+      apt:
+        name: "{{ fcitx5_mozc_packages }}"
+        state: present
+        update_cache: yes
+
+    - name: Optionally purge ibus-mozc to avoid duplicate Mozc backends
+      apt:
+        name:
+          - ibus-mozc
+          - ibus-anthy
+        state: absent
+        purge: yes
+      when: fcitx5_mozc_purge_ibus_mozc | bool
+
+    - name: Generate ja_JP.UTF-8 locale
+      locale_gen:
+        name: ja_JP.UTF-8
+        state: present
+      when: fcitx5_mozc_generate_locale | bool
+
+    - name: Set system-wide IM environment variables
+      blockinfile:
+        path: /etc/environment
+        marker: "# {mark} ANSIBLE MANAGED: fcitx5"
+        block: |
+          GTK_IM_MODULE=fcitx
+          QT_IM_MODULE=fcitx
+          XMODIFIERS=@im=fcitx
+          SDL_IM_MODULE=fcitx
+          GLFW_IM_MODULE=ibus
+      when: fcitx5_mozc_set_system_env | bool
+
+  tags:
+    - fcitx5_mozc
+
+# ---------------------------------------------------------------------------
+# GNOME-side dconf overrides (system-wide). Applied via local dconf db so
+# they survive without touching individual user configs. These are critical
+# because GNOME otherwise grabs Ctrl+Space / Super+Space for "switch input
+# source" and silently swallows the keystroke before fcitx5 ever sees it.
+# ---------------------------------------------------------------------------
+
+- block:
+    - name: Ensure dconf db local.d directory exists
+      file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure dconf user profile points at local db
+      copy:
+        dest: /etc/dconf/profile/user
+        content: |
+          user-db:user
+          system-db:local
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Deploy dconf override pinning a single GNOME input source
+      template:
+        src: 00-fcitx5-input-sources.j2
+        dest: /etc/dconf/db/local.d/00-fcitx5-input-sources
+        owner: root
+        group: root
+        mode: "0644"
+      notify: update dconf db
+
+  when: fcitx5_mozc_configure_gnome_dconf | bool
+  tags:
+    - fcitx5_mozc
+    - fcitx5_mozc_gnome
+
+# ---------------------------------------------------------------------------
+# Per-user setup. Requires fcitx5_mozc_user / fcitx5_mozc_user_home to be
+# defined (the wrapping playbook is expected to set these).
+# ---------------------------------------------------------------------------
+
+- block:
+    - name: Ensure user-level fcitx5 config directory exists
+      file:
+        path: "{{ fcitx5_mozc_user_home }}/.config/fcitx5"
+        state: directory
+        owner: "{{ fcitx5_mozc_user }}"
+        group: "{{ fcitx5_mozc_user }}"
+        mode: "0755"
+
+    - name: Deploy fcitx5 hotkey config (pin Ctrl+Space trigger key)
+      template:
+        src: fcitx5_config.j2
+        dest: "{{ fcitx5_mozc_user_home }}/.config/fcitx5/config"
+        owner: "{{ fcitx5_mozc_user }}"
+        group: "{{ fcitx5_mozc_user }}"
+        mode: "0644"
+        backup: yes
+
+    - name: Deploy fcitx5 profile (keyboard-{{ fcitx5_mozc_keyboard_layout }} + mozc)
+      template:
+        src: fcitx5_profile.j2
+        dest: "{{ fcitx5_mozc_user_home }}/.config/fcitx5/profile"
+        owner: "{{ fcitx5_mozc_user }}"
+        group: "{{ fcitx5_mozc_user }}"
+        mode: "0644"
+        backup: yes
+
+    # Avoid `creates: ~/.xinputrc` -- the file may already exist with
+    # `run_im default` (system fallback) and we want to overwrite it.
+    - name: Re-detect ~/.xinputrc selection after profile is in place
+      shell: |
+        if [ -r "{{ fcitx5_mozc_user_home }}/.xinputrc" ]; then
+          grep -m1 '^run_im' "{{ fcitx5_mozc_user_home }}/.xinputrc" \
+            | awk '{print $2}'
+        fi
+      register: fcitx5_mozc_user_im_now
+      changed_when: false
+      when: fcitx5_mozc_run_im_config | bool
+
+    - name: Switch im-config to fcitx5 for the user
+      become: yes
+      become_user: "{{ fcitx5_mozc_user }}"
+      command: im-config -n fcitx5
+      register: fcitx5_mozc_im_config_run
+      changed_when: "'fcitx5' not in (fcitx5_mozc_user_im_now.stdout | default(''))"
+      when:
+        - fcitx5_mozc_run_im_config | bool
+        - (fcitx5_mozc_user_im_now.stdout | default('') | trim) != 'fcitx5'
+
+    # ---- Autostart wiring ----
+    - name: Ensure user autostart directory exists
+      file:
+        path: "{{ fcitx5_mozc_user_home }}/.config/autostart"
+        state: directory
+        owner: "{{ fcitx5_mozc_user }}"
+        group: "{{ fcitx5_mozc_user }}"
+        mode: "0755"
+      when: fcitx5_mozc_install_autostart | bool
+        or fcitx5_mozc_mask_ibus_autostart | bool
+
+    - name: Install fcitx5 autostart desktop entry
+      copy:
+        dest: "{{ fcitx5_mozc_user_home }}/.config/autostart/fcitx5.desktop"
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=Fcitx 5
+          Exec=fcitx5 -d
+          X-GNOME-Autostart-enabled=true
+          NoDisplay=false
+        owner: "{{ fcitx5_mozc_user }}"
+        group: "{{ fcitx5_mozc_user }}"
+        mode: "0644"
+      when: fcitx5_mozc_install_autostart | bool
+
+    # Find any /etc/xdg/autostart/ibus-*.desktop and mask each by writing
+    # a same-named stub with Hidden=true to ~/.config/autostart/.
+    - name: Find system-wide ibus autostart entries
+      find:
+        paths: /etc/xdg/autostart
+        patterns: "ibus-*.desktop"
+        file_type: file
+      register: fcitx5_mozc_ibus_autostart_files
+      when: fcitx5_mozc_mask_ibus_autostart | bool
+
+    - name: Mask conflicting ibus autostart entries for the user
+      copy:
+        dest: "{{ fcitx5_mozc_user_home }}/.config/autostart/{{ item.path | basename }}"
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=Disabled by ansible (fcitx5_mozc role)
+          Hidden=true
+          NoDisplay=true
+          X-GNOME-Autostart-enabled=false
+        owner: "{{ fcitx5_mozc_user }}"
+        group: "{{ fcitx5_mozc_user }}"
+        mode: "0644"
+      loop: "{{ fcitx5_mozc_ibus_autostart_files.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: fcitx5_mozc_mask_ibus_autostart | bool
+
+  when: fcitx5_mozc_user is defined and fcitx5_mozc_user | length > 0
+  tags:
+    - fcitx5_mozc

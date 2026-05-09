@@ -1,0 +1,55 @@
+---
+# tasks file for roles/keyboard_swapcaps_gnome
+#
+# Swaps Caps Lock and Ctrl on Ubuntu desktop (GNOME / Wayland) and console.
+#
+# Two layers are configured (both can be toggled via vars):
+#   1. dconf system-wide override -> applies to GNOME sessions on next login
+#   2. /etc/default/keyboard -> applies to TTY/console and the GDM login screen
+
+- block:
+    - name: Ensure dconf override directory exists
+      file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: keyboard_swapcaps_apply_dconf | bool
+
+    - name: Deploy dconf override for xkb-options
+      template:
+        src: 00-keyboard-swapcaps.j2
+        dest: /etc/dconf/db/local.d/00-keyboard-swapcaps
+        owner: root
+        group: root
+        mode: "0644"
+      when: keyboard_swapcaps_apply_dconf | bool
+      notify: update dconf db
+
+    - name: Ensure local profile is registered for dconf
+      copy:
+        dest: /etc/dconf/profile/user
+        content: |
+          user-db:user
+          system-db:local
+        owner: root
+        group: root
+        mode: "0644"
+      when: keyboard_swapcaps_apply_dconf | bool
+      notify: update dconf db
+
+    - name: Set XKBOPTIONS in /etc/default/keyboard
+      lineinfile:
+        path: /etc/default/keyboard
+        regexp: '^XKBOPTIONS='
+        line: 'XKBOPTIONS="{{ keyboard_swapcaps_xkb_option }}"'
+        create: yes
+        owner: root
+        group: root
+        mode: "0644"
+      when: keyboard_swapcaps_apply_console | bool
+      notify: reconfigure console keyboard
+
+  tags:
+    - keyboard_swapcaps_gnome

@@ -1,0 +1,5 @@
+---
+# handlers file for roles/fcitx5_mozc
+
+- name: update dconf db
+  command: dconf update

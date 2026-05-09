@@ -1,0 +1,14 @@
+---
+# defaults file for roles/keyboard_swapcaps_gnome
+
+# XKB option to apply. Common values:
+#   ctrl:swapcaps      - Swap Caps Lock and Ctrl
+#   ctrl:nocaps        - Replace Caps Lock with Ctrl (Caps Lock disabled)
+#   caps:ctrl_modifier - Make Caps Lock an additional Ctrl (Caps Lock kept)
+keyboard_swapcaps_xkb_option: "ctrl:swapcaps"
+
+# Apply system-wide GNOME default via dconf override (affects new logins / new users)
+keyboard_swapcaps_apply_dconf: true
+
+# Apply console / initial layout via /etc/default/keyboard (affects TTY and login screen)
+keyboard_swapcaps_apply_console: true

@@ -1,0 +1,9 @@
+---
+# handlers file for roles/keyboard_swapcaps_gnome
+
+- name: update dconf db
+  command: dconf update
+
+- name: reconfigure console keyboard
+  command: setupcon --force
+  failed_when: false

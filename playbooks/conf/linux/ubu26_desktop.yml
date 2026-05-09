@@ -1,0 +1,52 @@
+---
+# Ubuntu 26.04 LTS (Resolute Raccoon) desktop setup playbook
+#
+# Bundles GUI + CUI keyboard customizations:
+#   - Caps Lock <-> Ctrl swap (GNOME/Wayland + console)
+#   - fcitx5 + mozc with Ctrl+Space as the IME trigger key
+#
+# Plus the developer baseline rolled into basic.yml (commons/git/tmux/vim/...).
+#
+# Usage (no extra vars needed; the invoking user is auto-detected):
+#   ansible-playbook -i hosts playbooks/conf/linux/ubu26_desktop.yml \
+#     -e server=localhost --connection=local -K
+#
+# To force-switch from an existing IBus setup, additionally pass:
+#   -e fcitx5_mozc_force_switch=true
+#   -e fcitx5_mozc_purge_ibus_mozc=true   # only if you accept losing IBus-side Mozc data
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  vars:
+    # Auto-detect the invoking desktop user. With `become: yes` + `-K`, sudo
+    # exports SUDO_USER to the task environment; ansible_facts.env.SUDO_USER
+    # picks it up. Falls back to lookup('env', 'USER') for non-become runs.
+    # `ansible_home` is set by the register_home role (must run first).
+    fcitx5_mozc_user: "{{ ansible_facts.env.SUDO_USER | default(lookup('env', 'USER'), true) }}"
+    fcitx5_mozc_user_home: >-
+      {{ ansible_home
+         | default('/home/' ~ (ansible_facts.env.SUDO_USER
+                               | default(lookup('env','USER'), true)),
+                   true) }}
+  roles:
+    # ---- baseline (mirrors basic.yml) ----
+    - register_home
+    - commons
+    - ipafont
+    - git
+    - tmux
+    - vim
+    - vim_config
+    - bash
+    - pip3
+    - pyenv
+    # IDEs are optional for desktop. Comment out if you don't want them.
+    - intellij
+    - pycharm
+    - goland
+
+    # ---- Ubuntu 26 desktop add-ons ----
+    - keyboard_swapcaps_gnome
+    - fcitx5_mozc
+
+# vim: et ts=2 sw=2:

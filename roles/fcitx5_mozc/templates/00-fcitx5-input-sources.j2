@@ -1,0 +1,12 @@
+{{ ansible_managed | comment }}
+# Pin GNOME's input source list to a single keyboard layout so GNOME does
+# not steal Ctrl+Space / Super+Space for "switch input source" before
+# fcitx5 sees the keystroke. Per-user `gsettings set` will still override
+# this if the user wants additional sources.
+[org/gnome/desktop/input-sources]
+sources=[('xkb', '{{ fcitx5_mozc_keyboard_layout }}')]
+
+# Clear conflicting WM keybindings. Empty list disables them entirely.
+[org/gnome/desktop/wm/keybindings]
+switch-input-source=@as []
+switch-input-source-backward=@as []

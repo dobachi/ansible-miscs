@@ -1,0 +1,5 @@
+---
+- hosts: localhost
+  become: yes
+  roles:
+    - keyboard_swapcaps_gnome

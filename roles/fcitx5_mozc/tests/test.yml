@@ -1,0 +1,8 @@
+---
+- hosts: localhost
+  become: yes
+  vars:
+    fcitx5_mozc_user: "{{ ansible_user_id }}"
+    fcitx5_mozc_user_home: "{{ ansible_env.HOME }}"
+  roles:
+    - fcitx5_mozc

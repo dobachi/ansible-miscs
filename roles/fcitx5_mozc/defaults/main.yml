@@ -1,0 +1,68 @@
+---
+# defaults file for roles/fcitx5_mozc
+
+# Safety: when an existing input-method framework (e.g. IBus) is already
+# configured, the role refuses to switch unless the user opts in. This
+# prevents silently breaking a working IME setup.
+#
+# Set to true to force-switch even if another IM is detected. The role will
+# still NOT uninstall packages or wipe user dotfiles for the previous IM.
+fcitx5_mozc_force_switch: false
+
+# When true, also purge ibus-mozc / ibus-anthy etc. so two Mozc backends do
+# not coexist. Off by default; the user might have data in the IBus-side
+# Mozc dictionary they would not want silently dropped.
+fcitx5_mozc_purge_ibus_mozc: false
+
+# Packages to install. Override to slim down if you do not need the GUI tools.
+# Frontend packages (gtk3/4, qt5/6) are required for fcitx5 to inject input
+# into modern GUI apps; missing them causes "fcitx5 starts but Ctrl+Space
+# is silently ignored in the editor".
+fcitx5_mozc_packages:
+  - fcitx5
+  - fcitx5-mozc
+  - fcitx5-config-qt
+  - fcitx5-frontend-gtk3
+  - fcitx5-frontend-gtk4
+  - fcitx5-frontend-qt5
+  - fcitx5-frontend-qt6
+  - mozc-utils-gui
+  - fonts-noto-cjk
+  - fonts-ipafont
+
+# Generate ja_JP.UTF-8 locale (does not change LANG)
+fcitx5_mozc_generate_locale: true
+
+# Set system-wide environment variables (/etc/environment) so XWayland & native
+# Wayland apps both pick up fcitx5 as the input method module.
+fcitx5_mozc_set_system_env: true
+
+# Switch im-config default to fcitx5 for the user (must run as the desktop user).
+# Requires `fcitx5_mozc_user` to be set when used in a playbook.
+fcitx5_mozc_run_im_config: true
+
+# Trigger key for input method on/off. fcitx5 default is Ctrl+Space, so leaving
+# this as the default keeps the upstream behavior. Listed explicitly here so the
+# config is reproducible.
+fcitx5_mozc_trigger_key: "Control+space"
+
+# Keyboard layout to use for the "direct input" (English) side of the toggle.
+# "us" or "jp" are the typical values.
+fcitx5_mozc_keyboard_layout: "us"
+
+# Install ~/.config/autostart/fcitx5.desktop so fcitx5 starts on user login.
+# Some distributions ship /etc/xdg/autostart/org.fcitx.Fcitx5.desktop but
+# Ubuntu 26 + GNOME does NOT autostart fcitx5 by default after im-config.
+fcitx5_mozc_install_autostart: true
+
+# Mask /etc/xdg/autostart/ibus-*.desktop entries for the user. Required when
+# switching off IBus -- otherwise GDM re-launches ibus-daemon every login,
+# which races with fcitx5 and can hijack hotkeys.
+fcitx5_mozc_mask_ibus_autostart: true
+
+# Apply GNOME-side dconf overrides (system-wide):
+#   * Pin org.gnome.desktop.input-sources.sources to a single keyboard layout
+#     so GNOME does not steal Ctrl+Space / Super+Space for source switching.
+#   * Clear org.gnome.desktop.wm.keybindings.switch-input-source(-backward)
+#     so they cannot conflict with fcitx5's TriggerKeys.
+fcitx5_mozc_configure_gnome_dconf: true

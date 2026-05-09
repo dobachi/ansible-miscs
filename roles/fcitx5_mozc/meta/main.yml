@@ -1,0 +1,18 @@
+galaxy_info:
+  author: dobachi
+  description: Install fcitx5 + fcitx5-mozc and pin Ctrl+Space trigger on Ubuntu desktop
+  license: BSD-3-Clause
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+  galaxy_tags:
+    - ime
+    - fcitx5
+    - mozc
+    - japanese
+    - ubuntu
+
+dependencies: []

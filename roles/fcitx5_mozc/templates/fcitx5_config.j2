@@ -1,0 +1,28 @@
+{{ ansible_managed | comment }}
+# fcitx5 hotkey list values must live in their own [Hotkey/<Name>] subsection,
+# NOT as `Name=` + `0=...` lines under [Hotkey]. The latter form parses as an
+# empty list and silently disables the trigger.
+
+[Hotkey/TriggerKeys]
+0={{ fcitx5_mozc_trigger_key }}
+
+[Hotkey/AltTriggerKeys]
+0=Shift_L
+
+[Hotkey/EnumerateGroupForwardKeys]
+0=Super+space
+
+[Hotkey/EnumerateGroupBackwardKeys]
+0=Shift+Super+space
+
+[Behavior]
+ActiveByDefault=False
+ShareInputState=No
+PreeditEnabledByDefault=True
+ShowInputMethodInformation=True
+ShowInputMethodInformationWhenFocusIn=False
+CompactInputMethodInformation=True
+ShowFirstInputMethodInformation=True
+DefaultPageSize=5
+EnumerateWithTriggerKeys=True
+EnumerateSkipFirst=False

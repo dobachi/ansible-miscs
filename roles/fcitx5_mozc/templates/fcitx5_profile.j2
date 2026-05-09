@@ -1,0 +1,22 @@
+{{ ansible_managed | comment }}
+# Two input methods are registered so fcitx5's TriggerKeys (Ctrl+Space) can
+# toggle between direct keyboard input ("English") and Mozc ("Japanese").
+# Order matters: the first item is what fcitx5 falls back to when toggled
+# off; making it the keyboard layout means Ctrl+Space yields the expected
+# direct-input behavior on the inactive side.
+
+[Groups/0]
+Name=Default
+Default Layout={{ fcitx5_mozc_keyboard_layout }}
+DefaultIM=mozc
+
+[Groups/0/Items/0]
+Name=keyboard-{{ fcitx5_mozc_keyboard_layout }}
+Layout=
+
+[Groups/0/Items/1]
+Name=mozc
+Layout=
+
+[GroupOrder]
+0=Default
