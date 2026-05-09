@@ -1,4 +1,22 @@
+---
+# Pandoc (ドキュメント変換ツール) を導入する。
+#
+# OS 別のインストール方法:
+#   - Ubuntu 24.04 / 26.04+ : apt の pandoc (3.x 系)
+#   - Ubuntu 22.04          : upstream の pandoc 2.19.2 deb
+#   - Ubuntu 18.04          : upstream の pandoc 2.9.2 deb
+#   - CentOS 7              : upstream の tarball を /usr/local/pandoc に展開
+#   - その他                : 何もしない (when ガードで全分岐 skip)
+#
+# 実行例:
+#   ansible-playbook -i hosts playbooks/conf/linux/pandoc.yml \
+#     -e server=localhost --connection=local -K
+#
+# 既定の対象グループは [wsl] (互換性維持)。Ubuntu 26 ホストで使う場合は
+# -e server=localhost か、対象グループを明示してください。
+#
 - hosts: "{{ server | default('wsl') }}"
+  become: yes
   roles:
     - pandoc
 
