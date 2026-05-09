@@ -1,3 +1,14 @@
-- hosts: "{{ server | default('wsl') }}"
+---
+# TeX Live (英語 + 日本語論文執筆環境) を Debian/Ubuntu 系に導入する。
+# apt ベース。詳細は roles/texlive/README.md を参照。
+#
+# 実行例:
+#   ansible-playbook -i hosts playbooks/conf/linux/texlive.yml \
+#     -e server=localhost --connection=local -K
+#
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
   roles:
     - texlive
+
+# vim: et ts=2 sw=2:

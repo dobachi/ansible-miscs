@@ -6,6 +6,9 @@
 #   - fcitx5 + mozc with Ctrl+Space as the IME trigger key
 #   - Ctrl+Tab / Ctrl+Shift+Tab for next / previous tab on
 #     gnome-terminal and Ptyxis
+#   - CopyQ clipboard manager + Super+V (Win+V 相当) shortcut
+#   - TeX Live (apt) for English/Japanese paper writing + TeXstudio editor
+#     (詳細は roles/texlive/README.md と roles/texstudio/README.md)
 #
 # Plus the developer baseline rolled into basic.yml (commons/git/tmux/vim/...).
 #
@@ -16,6 +19,10 @@
 # To force-switch from an existing IBus setup, additionally pass:
 #   -e fcitx5_mozc_force_switch=true
 #   -e fcitx5_mozc_purge_ibus_mozc=true   # only if you accept losing IBus-side Mozc data
+#
+# Common TeX overrides (see roles/texlive/defaults/main.yml for all knobs):
+#   -e texlive_install_japanese=false           # 英語のみで軽くしたい
+#   -e texlive_japanese_font_preset=ipaex       # 既定フォントを Noto から IPA へ
 
 - hosts: "{{ server | default('localhost') }}"
   become: yes
@@ -52,5 +59,9 @@
     - fcitx5_mozc
     - gnome_terminal_tab_switch
     - copyq
+
+    # ---- Paper / TeX environment ----
+    - texlive
+    - texstudio
 
 # vim: et ts=2 sw=2:

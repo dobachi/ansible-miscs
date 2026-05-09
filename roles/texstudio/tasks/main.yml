@@ -1,0 +1,10 @@
+---
+# tasks file for roles/texstudio
+- block:
+  - name: Install TeXstudio
+    apt:
+      name: texstudio
+      state: present
+
+  tags:
+    - texstudio
