@@ -1,0 +1,8 @@
+---
+# defaults file for roles/gnome_screenshot_shortcut
+
+# show-screenshot-ui に割り当てるキーの配列 (dconf override は GVariant 形式の
+# 文字列をそのまま展開する)。
+# Print キーが無いデバイスでも <Super><Shift>s で呼べるようにし、Print がある
+# 機種でも引き続き Print で動くよう両方残す。
+gnome_screenshot_shortcut_keys: "['Print', '<Super><Shift>s']"

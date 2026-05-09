@@ -1,0 +1,41 @@
+---
+# tasks file for roles/gnome_screenshot_shortcut
+#
+# GNOME Shell 組み込みのスクリーンショット UI (show-screenshot-ui) を
+# 既定の Print キーに加えて Windows 風の <Super><Shift>s でも起動できるよう
+# system-wide dconf override を配置する。
+#
+# UI 内で矩形選択 / ウィンドウ / 全画面 / 録画を選べ、結果は
+# クリップボードコピー + ~/Pictures/Screenshots/ への保存が同時に行われる。
+
+- block:
+    - name: Ensure dconf override directory exists
+      file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy dconf override for screenshot UI shortcut
+      template:
+        src: 00-screenshot-shortcut.j2
+        dest: /etc/dconf/db/local.d/00-screenshot-shortcut
+        owner: root
+        group: root
+        mode: "0644"
+      notify: update dconf db
+
+    - name: Ensure local profile is registered for dconf
+      copy:
+        dest: /etc/dconf/profile/user
+        content: |
+          user-db:user
+          system-db:local
+        owner: root
+        group: root
+        mode: "0644"
+      notify: update dconf db
+
+  tags:
+    - gnome_screenshot_shortcut

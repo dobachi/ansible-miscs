@@ -7,6 +7,8 @@
 #   - Ctrl+Tab / Ctrl+Shift+Tab for next / previous tab on
 #     gnome-terminal and Ptyxis
 #   - CopyQ clipboard manager + Super+V (Win+V 相当) shortcut
+#   - GNOME Shell 組み込みスクリーンショット UI を Super+Shift+S
+#     (Win+Shift+S 相当) でも起動 (Print キー非搭載機向け)
 #   - TeX Live (apt) for English/Japanese paper writing + TeXstudio editor
 #     (詳細は roles/texlive/README.md と roles/texstudio/README.md)
 #
@@ -59,6 +61,7 @@
     - fcitx5_mozc
     - gnome_terminal_tab_switch
     - copyq
+    - gnome_screenshot_shortcut
 
     # ---- Paper / TeX environment ----
     - texlive

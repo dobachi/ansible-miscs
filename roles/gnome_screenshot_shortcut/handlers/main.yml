@@ -1,0 +1,5 @@
+---
+# handlers file for roles/gnome_screenshot_shortcut
+
+- name: update dconf db
+  command: dconf update

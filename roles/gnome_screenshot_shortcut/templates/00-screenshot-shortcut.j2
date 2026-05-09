@@ -1,0 +1,5 @@
+{{ ansible_managed | comment }}
+[org/gnome/shell/keybindings]
+# show-screenshot-ui は GNOME 46+ の組み込みスクリーンショット/録画 UI 起動。
+# 既定モードは矩形選択。UI 内でウィンドウ/全画面/録画にも切替可能。
+show-screenshot-ui={{ gnome_screenshot_shortcut_keys }}
