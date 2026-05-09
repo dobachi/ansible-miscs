@@ -70,14 +70,21 @@
     - name: Flush handlers before user creation
       ansible.builtin.meta: flush_handlers
 
+    # `headscale users create` exits non-zero when the user is already
+    # present, but the diagnostic moves between stdout/stderr and casing
+    # depending on the version. Treat any "already exists" / "already taken"
+    # variant as a no-op rather than a failure.
     - name: Create initial users
       ansible.builtin.command: "headscale users create {{ item }}"
       loop: "{{ headscale_users | default([]) }}"
       register: create_user
-      changed_when: "'created' in (create_user.stdout | default(''))"
+      changed_when: "'created' in ((create_user.stdout | default('')) | lower)"
       failed_when:
         - create_user.rc != 0
-        - "'already exists' not in (create_user.stderr | default(''))"
+        - >-
+          ((create_user.stderr | default('')) ~ ' ' ~ (create_user.stdout | default('')))
+          | lower
+          | regex_search('already (exists|taken)') is none
 
   tags:
     - headscale_server
