@@ -2,12 +2,12 @@
 # tasks file for roles/goland
 
 - block:
-  #- name: Get ansible_user home directory
-  #  shell: 'getent passwd "{{ansible_facts['env']['SUDO_USER']}}" | cut -d: -f6'
-  #  register: ansible_home_result
-
-  #- name: Set the fact for the other scripts to use
-  #  set_fact: ansible_home='{{ansible_home_result.stdout}}'
+  # Skip download / unarchive entirely when this version is already extracted.
+  # Bumping goland_version is what triggers a fresh install on the next run.
+  - name: check_existing_goland_extraction
+    stat:
+      path: "{{ ansible_home }}/GoLand/GoLand-{{ goland_version }}"
+    register: goland_extracted
 
   - name: mkdir_Downloads
     file:
@@ -15,31 +15,41 @@
       state: directory
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+    when: not goland_extracted.stat.exists
+
   - name: downloads_tar
     get_url:
       url: https://download.jetbrains.com/go/goland-{{ goland_version }}.tar.gz
       dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/goland-{{ goland_version }}.tar.gz
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      timeout: 300
+    when: not goland_extracted.stat.exists
+
   - name: mkdir_goland
     file:
       path: /home/{{ ansible_facts['env']['SUDO_USER'] }}/GoLand
       state: directory
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+    when: not goland_extracted.stat.exists
+
   - name: unarchive_goland
-    unarchive: 
+    unarchive:
       src: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/goland-{{ goland_version }}.tar.gz
       dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/GoLand
       remote_src: yes
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
       creates: "{{ansible_home}}/GoLand/GoLand-{{ goland_version }}"
+    when: not goland_extracted.stat.exists
+
   - name: configure_alternatives
     alternatives:
       name: goland
       path: "{{ansible_home}}/GoLand/GoLand-{{ goland_version }}/bin/goland.sh"
       link: "{{ansible_home}}/.local/bin/goland"
+
   - name: copy_ideavimrc
     get_url:
       url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc

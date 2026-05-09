@@ -2,12 +2,13 @@
 # tasks file for roles/intellij
 
 - block:
-  #- name: Get ansible_user home directory
-  #  shell: 'getent passwd "{{ansible_facts['env']['SUDO_USER']}}" | cut -d: -f6'
-  #  register: ansible_home_result
-
-  #- name: Set the fact for the other scripts to use
-  #  set_fact: ansible_home='{{ansible_home_result.stdout}}'
+  # Skip download / unarchive entirely when this version is already extracted.
+  # Bumping intellij_version (and intellij_directory) is what triggers a
+  # fresh install on the next run.
+  - name: check_existing_intellij_extraction
+    stat:
+      path: "{{ ansible_home }}/Intellij/idea-IU-{{ intellij_directory }}"
+    register: intellij_extracted
 
   - name: mkdir_Downloads
     file:
@@ -15,31 +16,41 @@
       state: directory
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+    when: not intellij_extracted.stat.exists
+
   - name: downloads_tar
     get_url:
       url: https://download.jetbrains.com/idea/ideaIU-{{ intellij_version }}.tar.gz
       dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      timeout: 300
+    when: not intellij_extracted.stat.exists
+
   - name: mkdir_intellij
     file:
       path: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Intellij
       state: directory
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+    when: not intellij_extracted.stat.exists
+
   - name: unarchive_intellij
-    unarchive: 
+    unarchive:
       src: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Downloads/ideaIU-{{ intellij_version }}.tar.gz
       dest: /home/{{ ansible_facts['env']['SUDO_USER'] }}/Intellij
       remote_src: yes
       owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
       group: "{{ ansible_facts['env']['SUDO_USER'] }}"
       creates: "{{ansible_home}}/Intellij/idea-IU-{{ intellij_directory }}"
+    when: not intellij_extracted.stat.exists
+
   - name: configure_alternatives
     alternatives:
       name: intellij
       path: "{{ansible_home}}/Intellij/idea-IU-{{ intellij_directory }}/bin/idea.sh"
       link: "{{ansible_home}}/.local/bin/idea"
+
   - name: copy_ideavimrc
     get_url:
       url: https://raw.githubusercontent.com/dobachi/ideavimrc/master/_ideavimrc
