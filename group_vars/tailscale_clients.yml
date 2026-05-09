@@ -1,0 +1,68 @@
+---
+# =====================================================================
+# group_vars for [tailscale_clients]
+#   (used by playbooks/conf/linux/tailscale_client.yml)
+# =====================================================================
+#
+# defaults は roles/tailscale_client/defaults/main.yml を参照。
+# 何も設定しなくても apt で tailscale を入れて tailscaled を起動するところ
+# までは動きます。ノードの自動登録 (`tailscale up`) を Ansible 側で
+# 走らせたい場合は、最低限 tailscale_login_server と tailscale_auth_key
+# を埋めてください。
+#
+# tailscale_auth_key は機密なので vault 化を強く推奨。
+#   ansible-vault encrypt_string 'tskey-auth-xxxx' \
+#     --name 'vault_tailscale_auth_key' >> group_vars/tailscale_clients.yml
+# でこのファイル末尾に暗号文を追記し、下の tailscale_auth_key 行で
+# {{ vault_tailscale_auth_key }} を参照する形にしてください。
+# ---------------------------------------------------------------------
+
+# ---- ノード自動登録 (`tailscale up`) を有効化するための変数 -----------
+
+# Headscale の server_url (= headscale group_vars の headscale_server_url
+# と一致させる)。空のままなら Tailscale SaaS controlplane に向く。
+# tailscale_login_server: "https://hs.example.com"
+
+# Pre-auth key。Headscale 側で:
+#   sudo headscale preauthkeys create -u alice --reusable --expiration 24h
+# 平文で書かず、必ず Ansible Vault 経由で:
+# tailscale_auth_key: "{{ vault_tailscale_auth_key }}"
+
+# ---- `tailscale up` のフラグ調整 (任意) -------------------------------
+
+# Tailscale SSH を有効化 (ACL 側の headscale_acl_enable_ssh と組)
+# tailscale_ssh: true
+
+# MagicDNS を受け入れるか / 他ノードが advertise する経路を受け入れるか
+# tailscale_accept_dns: true
+# tailscale_accept_routes: true
+
+# このノードを exit node として広告するか
+# tailscale_advertise_exit_node: false
+
+# subnet router として広告する経路 (例: 自宅 LAN を流す)
+# tailscale_advertise_routes:
+#   - "192.168.10.0/24"
+
+# tailnet 上の表示名 (空ならホスト名)
+# tailscale_hostname: ""
+
+# 上記で表現できないフラグを raw で append (例: ["--shields-up"])
+# tailscale_extra_up_args: []
+
+# ---- デバッグ・運用 --------------------------------------------------
+
+# 既に up 済みでも `tailscale up` を強制再実行する。フラグを変えたいときに。
+# 単発キーは再利用不可なので reusable key が必要。
+# tailscale_up_force: false
+
+# `tailscale up` の stdout/stderr をログに出すか。auth key が argv に入る
+# ため通常は no_log=true。トラブル調査時のみ false にする。
+# tailscale_up_no_log: true
+
+# upstream apt repo を使うか。distro 同梱の tailscale を優先したい場合は false
+# tailscale_use_upstream_repo: true
+
+# ---- vault を使う場合の参考 ------------------------------------------
+# このファイル末尾に encrypt_string で吐いた vault_tailscale_auth_key を
+# 貼り付けたあと、上の tailscale_auth_key 行のコメントを外す。

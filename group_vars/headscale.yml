@@ -1,0 +1,70 @@
+---
+# =====================================================================
+# group_vars for [headscale]  (used by playbooks/conf/linux/headscale_server.yml)
+# =====================================================================
+#
+# 必要な変数だけコメントを外して埋めれば、毎回 -e で渡さずに済みます。
+# defaults は roles/headscale_server/defaults/main.yml と
+#            roles/caddy_for_headscale/defaults/main.yml を参照。
+#
+# 機密値を vault 化する場合は別ファイルに切り出し:
+#   ansible-vault create group_vars/headscale_vault.yml
+# のうえで、ここでは vault 変数を参照する形にしてください (例は最下段)。
+# ---------------------------------------------------------------------
+
+# ---- 必須 (これらが無いと headscale_server.yml が成立しない) -----------
+
+# クライアントが接続する公開URL。DNSのAレコードがこのホストの公衆IP
+# (EIP等) を指している必要がある。
+# headscale_server_url: "https://hs.example.com"
+
+# MagicDNS のベースドメイン。server_url のドメインとは「別」にすること。
+# headscale_base_domain: "hs-net.example.com"
+
+# Let's Encrypt 用の連絡先メール。Caddy が自動更新で使用。
+# caddy_admin_email: "you@example.com"
+
+# ---- 任意 (運用にあわせて) -------------------------------------------
+
+# 初期作成するユーザ名のリスト。冪等で、既存名は no-op。
+# headscale_users:
+#   - alice
+#   - bob
+
+# Headscale 本体のバージョン (deb タグから 'v' を抜いたもの)
+# headscale_version: "0.28.0"
+
+# CPU アーキテクチャ。デフォルトは facts 自動検出 (arm64/amd64)
+# headscale_arch: "amd64"
+
+# ACL: Tailscale SSH を許可するか / どのローカルユーザに impersonate するか
+# headscale_acl_enable_ssh: true
+# headscale_acl_ssh_users:
+#   - "root"
+#   - "autogroup:nonroot"
+# headscale_acl_ssh_src:
+#   - "autogroup:member"
+# headscale_acl_ssh_dst:
+#   - "autogroup:self"
+
+# Headscale のリッスンアドレス (Caddy 経由が前提なので localhost 推奨)
+# headscale_listen_addr: "127.0.0.1:8080"
+# headscale_metrics_listen_addr: "127.0.0.1:9090"
+# headscale_grpc_listen_addr: "127.0.0.1:50443"
+
+# Tailnet アドレス割当 (デフォルト = Tailscale 公式 CGNAT 範囲)
+# headscale_v4_prefix: "100.64.0.0/10"
+# headscale_v6_prefix: "fd7a:115c:a1e0::/48"
+
+# MagicDNS で配るリゾルバ
+# headscale_global_nameservers:
+#   - 1.1.1.1
+#   - 9.9.9.9
+# headscale_search_domains: []
+
+# 内蔵 DERP (STUN) サーバ。基本オフ、上流の DERP map に乗る
+# headscale_derp_server_enabled: false
+
+# ---- vault を使う場合の参考 ------------------------------------------
+# group_vars/headscale_vault.yml に vault_caddy_admin_email を入れて:
+#   caddy_admin_email: "{{ vault_caddy_admin_email }}"

@@ -21,3 +21,23 @@ ansible_ssh_port=5986
 ansible_connection_port=winrm
 ansible_winrm_server_cert_validation=ignore
 
+# ---------------------------------------------------------------------------
+# Headscale coordination server
+#   Used by: playbooks/conf/linux/headscale_server.yml
+#   Defaults / required vars: see group_vars/headscale.yml
+# ---------------------------------------------------------------------------
+[headscale]
+localhost ansible_connection=local
+# hs.example.com ansible_user=ubuntu
+
+# ---------------------------------------------------------------------------
+# Tailscale clients (laptops, Raspberry Pi, home servers, ...)
+#   Used by: playbooks/conf/linux/tailscale_client.yml
+#   Defaults / required vars: see group_vars/tailscale_clients.yml
+# ---------------------------------------------------------------------------
+[tailscale_clients]
+localhost ansible_connection=local
+# laptop  ansible_user=alice
+# rpi5    ansible_user=pi
+# homesvr ansible_user=admin
+
