@@ -38,3 +38,9 @@ tailscale_extra_up_args: []          # raw extra flags, appended verbatim
 # Hide stdout/stderr of `tailscale up` because the auth key is in argv. Set
 # to false temporarily for debugging -- the auth key WILL appear in the log.
 tailscale_up_no_log: true
+
+# Force `tailscale up` even when the node is already up. Useful when you want
+# to change flags (advertise routes etc.) on a host that is already connected.
+# Single-use auth keys cannot be reused on an already-up node, so a reusable
+# key is required when this is true.
+tailscale_up_force: false

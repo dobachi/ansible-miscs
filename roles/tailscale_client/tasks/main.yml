@@ -51,11 +51,29 @@
 # ---------------------------------------------------------------------------
 
 - block:
-    - name: Check whether tailscale is already up against this login server
+    - name: Inspect current tailscale state
       ansible.builtin.command: tailscale status --json
       register: tailscale_status
       changed_when: false
       failed_when: false
+
+    - name: Parse current tailscale state
+      ansible.builtin.set_fact:
+        _ts_state: "{{ tailscale_status.stdout | default('{}') | from_json }}"
+
+    - name: Show current tailscale state
+      ansible.builtin.debug:
+        msg:
+          - "BackendState  : {{ _ts_state.BackendState | default('(unknown)') }}"
+          - "ControlURL    : {{ _ts_state.Self.ControlURL | default('(none)') if _ts_state.Self is defined else '(none)' }}"
+          - "Will run up?  : {{ _ts_should_up | default(true) }}"
+      vars:
+        # Skip 'tailscale up' when already Running and not explicitly forced.
+        # Single-use auth keys are consumed on first up, so re-running with
+        # the same key would fail otherwise.
+        _ts_should_up: >-
+          {{ (tailscale_up_force | default(false) | bool)
+             or (_ts_state.BackendState | default('') != 'Running') }}
 
     - name: Build tailscale up arguments
       ansible.builtin.set_fact:
@@ -72,6 +90,9 @@
             + (['--hostname=' ~ tailscale_hostname] if tailscale_hostname | length > 0 else [])
             + tailscale_extra_up_args
           }}
+      when:
+        - (tailscale_up_force | default(false) | bool)
+          or (_ts_state.BackendState | default('') != 'Running')
 
     - name: Run tailscale up
       ansible.builtin.command:
@@ -80,9 +101,12 @@
       changed_when: tailscale_up.rc == 0
       failed_when: false
       no_log: "{{ tailscale_up_no_log | bool }}"
+      when:
+        - (tailscale_up_force | default(false) | bool)
+          or (_ts_state.BackendState | default('') != 'Running')
 
-    # Surface diagnostics WITHOUT printing the auth key. The full argv is
-    # still hidden by the no_log on the previous task.
+    # Surface diagnostics WITHOUT printing the auth key. Skipped when
+    # tailscale up itself was skipped (already-up case).
     - name: Show tailscale up result (auth key redacted)
       ansible.builtin.debug:
         msg:
@@ -91,6 +115,7 @@
           - "hostname     : {{ tailscale_hostname | default(ansible_hostname) }}"
           - "stdout (last): {{ (tailscale_up.stdout_lines | default([]))[-3:] | default([]) }}"
           - "stderr (last): {{ (tailscale_up.stderr_lines | default([]))[-3:] | default([]) }}"
+      when: tailscale_up is not skipped
 
     - name: Fail if tailscale up returned non-zero
       ansible.builtin.fail:
@@ -98,8 +123,11 @@
           'tailscale up' failed (rc={{ tailscale_up.rc }}). See the previous
           debug task for the redacted output. Re-run with
           -e tailscale_up_no_log=false to see the full output (the auth key
-          WILL appear in the log).
-      when: tailscale_up.rc | default(1) != 0
+          WILL appear in the log). Pass -e tailscale_up_force=true if you
+          want to retry against a node that is already up.
+      when:
+        - tailscale_up is not skipped
+        - tailscale_up.rc | default(1) != 0
 
   when: tailscale_auth_key | length > 0
   tags:
