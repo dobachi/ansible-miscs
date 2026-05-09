@@ -4,6 +4,8 @@
 # Bundles GUI + CUI keyboard customizations:
 #   - Caps Lock <-> Ctrl swap (GNOME/Wayland + console)
 #   - fcitx5 + mozc with Ctrl+Space as the IME trigger key
+#   - Ctrl+Tab / Ctrl+Shift+Tab for next / previous tab on
+#     gnome-terminal and Ptyxis
 #
 # Plus the developer baseline rolled into basic.yml (commons/git/tmux/vim/...).
 #
@@ -48,5 +50,6 @@
     # ---- Ubuntu 26 desktop add-ons ----
     - keyboard_swapcaps_gnome
     - fcitx5_mozc
+    - gnome_terminal_tab_switch
 
 # vim: et ts=2 sw=2:

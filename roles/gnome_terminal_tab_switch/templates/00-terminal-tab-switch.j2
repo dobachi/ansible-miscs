@@ -1,0 +1,15 @@
+{{ ansible_managed | comment }}
+{% if gnome_terminal_tab_switch_apply_gnome_terminal %}
+[org/gnome/terminal/legacy/keybindings]
+# Master switch for the legacy keybindings schema. Without this, custom values
+# under this path are ignored by gnome-terminal.
+enabled=true
+next-tab='{{ gnome_terminal_tab_switch_next }}'
+prev-tab='{{ gnome_terminal_tab_switch_prev }}'
+{% endif %}
+{% if gnome_terminal_tab_switch_apply_ptyxis %}
+
+[org/gnome/Ptyxis]
+shortcut-tab-next='{{ gnome_terminal_tab_switch_next }}'
+shortcut-tab-previous='{{ gnome_terminal_tab_switch_prev }}'
+{% endif %}

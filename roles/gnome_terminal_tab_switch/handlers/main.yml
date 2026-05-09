@@ -1,0 +1,5 @@
+---
+# handlers file for roles/gnome_terminal_tab_switch
+
+- name: update dconf db
+  command: dconf update

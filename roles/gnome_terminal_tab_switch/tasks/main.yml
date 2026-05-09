@@ -1,0 +1,37 @@
+---
+# tasks file for roles/gnome_terminal_tab_switch
+#
+# Bind Ctrl+Tab / Ctrl+Shift+Tab to next/previous tab on GUI terminals
+# (gnome-terminal and Ptyxis) via system-wide dconf override.
+
+- block:
+    - name: Ensure dconf override directory exists
+      file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy dconf override for terminal tab switching
+      template:
+        src: 00-terminal-tab-switch.j2
+        dest: /etc/dconf/db/local.d/00-terminal-tab-switch
+        owner: root
+        group: root
+        mode: "0644"
+      notify: update dconf db
+
+    - name: Ensure local profile is registered for dconf
+      copy:
+        dest: /etc/dconf/profile/user
+        content: |
+          user-db:user
+          system-db:local
+        owner: root
+        group: root
+        mode: "0644"
+      notify: update dconf db
+
+  tags:
+    - gnome_terminal_tab_switch

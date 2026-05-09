@@ -1,0 +1,17 @@
+---
+# defaults file for roles/gnome_terminal_tab_switch
+#
+# Configure Ctrl+Tab / Ctrl+Shift+Tab as next / previous tab shortcuts
+# for GUI terminals on GNOME desktop, via system-wide dconf override.
+
+# Configure GNOME Terminal (gnome-terminal). Schema: org.gnome.Terminal.Legacy.Keybindings
+gnome_terminal_tab_switch_apply_gnome_terminal: true
+
+# Configure Ptyxis (default terminal on Ubuntu 25.10+). Schema: org.gnome.Ptyxis
+gnome_terminal_tab_switch_apply_ptyxis: true
+
+# Keybindings in GNOME accelerator format:
+#   <Primary>  -> Ctrl
+#   <Shift>, <Alt>, <Super> -> respective modifiers
+gnome_terminal_tab_switch_next: "<Primary>Tab"
+gnome_terminal_tab_switch_prev: "<Primary><Shift>Tab"
