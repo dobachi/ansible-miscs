@@ -1,0 +1,8 @@
+---
+- hosts: localhost
+  become: yes
+  vars:
+    headscale_server_url: "https://hs.example.com"
+    caddy_admin_email: "you@example.com"
+  roles:
+    - caddy_for_headscale

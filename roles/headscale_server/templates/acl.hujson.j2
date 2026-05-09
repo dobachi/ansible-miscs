@@ -1,0 +1,21 @@
+{
+  // Default permissive policy: every user can reach every node.
+  // Tighten as needed -- see https://tailscale.com/kb/1018/acls/
+  "acls": [
+    { "action": "accept", "src": ["*"], "dst": ["*:*"] }
+  ]{% if headscale_acl_enable_ssh | bool %},
+
+  // Tailscale SSH between tailnet hosts. Combined with `tailscale up --ssh`
+  // on each client, this replaces per-host SSH key management with ACL-based
+  // auth.
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["*"],
+      "dst": ["*"],
+      "users": {{ headscale_acl_ssh_users | to_json }}
+    }
+  ]
+{% endif %}
+
+}

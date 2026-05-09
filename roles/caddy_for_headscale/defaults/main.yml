@@ -1,0 +1,10 @@
+---
+# defaults file for roles/caddy_for_headscale
+
+# Required: e-mail used for Let's Encrypt registration / expiry notifications
+caddy_admin_email: ""
+
+# Caddy expects to forward to whatever Headscale binds to. The role pulls the
+# value from the headscale_server role's variable so a single
+# headscale_listen_addr declaration suffices in group_vars.
+caddy_for_headscale_upstream: "{{ headscale_listen_addr | default('127.0.0.1:8080') }}"

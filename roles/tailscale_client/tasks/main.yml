@@ -1,0 +1,86 @@
+---
+# tasks file for roles/tailscale_client
+#
+# Installs the Tailscale client from the upstream apt repo, enables tailscaled,
+# and (when an auth key is provided) registers the node against the configured
+# coordination server. Designed to talk to a self-hosted Headscale, but works
+# unchanged against the Tailscale SaaS controlplane.
+
+- block:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name:
+          - curl
+          - gnupg
+          - ca-certificates
+          - apt-transport-https
+        state: present
+
+    - name: Add Tailscale GPG key
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/{{ tailscale_distro_id }}/{{ tailscale_distro_codename }}.noarmor.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: "0644"
+      when: tailscale_use_upstream_repo | bool
+
+    - name: Add Tailscale apt repository
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/{{ tailscale_distro_id }}/{{ tailscale_distro_codename }}.tailscale-keyring.list"
+        dest: /etc/apt/sources.list.d/tailscale.list
+        mode: "0644"
+      when: tailscale_use_upstream_repo | bool
+
+    - name: Install tailscale
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
+
+    - name: Enable and start tailscaled
+      ansible.builtin.systemd:
+        name: tailscaled
+        enabled: true
+        state: started
+
+  tags:
+    - tailscale_client
+
+# ---------------------------------------------------------------------------
+# `tailscale up` registration. Skipped entirely when no auth key is set, so
+# users who prefer to log in interactively are not blocked.
+# ---------------------------------------------------------------------------
+
+- block:
+    - name: Check whether tailscale is already up against this login server
+      ansible.builtin.command: tailscale status --json
+      register: tailscale_status
+      changed_when: false
+      failed_when: false
+
+    - name: Build tailscale up arguments
+      ansible.builtin.set_fact:
+        _tailscale_up_args: >-
+          {{
+            (['--login-server=' ~ tailscale_login_server] if tailscale_login_server | length > 0 else [])
+            + ['--auth-key=' ~ tailscale_auth_key]
+            + (['--accept-dns=' ~ (tailscale_accept_dns | bool | lower)])
+            + (['--accept-routes=' ~ (tailscale_accept_routes | bool | lower)])
+            + (['--ssh'] if tailscale_ssh | bool else [])
+            + (['--advertise-exit-node'] if tailscale_advertise_exit_node | bool else [])
+            + (['--advertise-routes=' ~ (tailscale_advertise_routes | join(','))]
+               if tailscale_advertise_routes | length > 0 else [])
+            + (['--hostname=' ~ tailscale_hostname] if tailscale_hostname | length > 0 else [])
+            + tailscale_extra_up_args
+          }}
+
+    - name: Run tailscale up
+      ansible.builtin.command:
+        argv: "{{ ['tailscale', 'up'] + _tailscale_up_args }}"
+      register: tailscale_up
+      changed_when: tailscale_up.rc == 0
+      no_log: true   # auth key is sensitive
+
+  when: tailscale_auth_key | length > 0
+  tags:
+    - tailscale_client
+    - tailscale_up

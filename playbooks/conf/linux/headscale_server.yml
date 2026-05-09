@@ -1,0 +1,114 @@
+---
+# =====================================================================
+# Headscale サーバ用 playbook (AWS EC2 など、1台のサーバ向け)
+# =====================================================================
+#
+# このplaybookは何をするか
+# ------------------------
+# AWSなど任意のLinuxホストに、Headscale本体 + Caddy(TLSリバースプロキシ)
+# を入れて、Tailscale互換のセルフホスト coordination server を構築する。
+#
+# 対になる playbook:
+#   - クライアント側: playbooks/conf/linux/tailscale_client.yml
+#
+# 使う role:
+#   - register_home          : `ansible_home` を解決(他rolesと共通の前提)
+#   - headscale_server       : Headscale 本体 + 設定 + 初期ユーザ
+#   - caddy_for_headscale    : Caddy 導入 + Caddyfile (Let's Encrypt)
+#
+# 必須の変数 (group_vars/host_vars / インベントリ / -e のいずれかで指定)
+# ----------------------------------------------------------------------
+#   headscale_server_url   : クライアントが接続する公開URL
+#                            例: "https://hs.example.com"
+#                            DNSのAレコードがこのホストの公衆IP(EIP)を
+#                            指している必要がある。
+#   headscale_base_domain  : MagicDNS のベースドメイン
+#                            例: "hs-net.example.com"
+#                            注: server_url のドメインとは「別」にすること。
+#   caddy_admin_email      : Let's Encrypt 用の連絡先メール
+#                            例: "you@example.com"
+#
+# 任意の変数 (デフォルトは roles/headscale_server/defaults/main.yml 参照)
+# ----------------------------------------------------------------------
+#   headscale_version          : "0.28.0" (デフォルト)
+#   headscale_arch             : amd64/arm64 (デフォルトは自動検出)
+#   headscale_users            : 初期作成するユーザ名のリスト
+#                                例: ["alice", "bob"]
+#   headscale_acl_enable_ssh   : true (デフォルト) Tailscale SSH を ACL で許可
+#   headscale_acl_ssh_users    : ["root", "autogroup:nonroot"] (デフォルト)
+#   headscale_listen_addr      : "127.0.0.1:8080" (Caddy越し前提)
+#   headscale_v4_prefix        : "100.64.0.0/10" (CGNAT)
+#   headscale_global_nameservers : [1.1.1.1, 9.9.9.9]
+#
+# 事前準備
+# --------
+#   1. AWS EC2(または自宅サーバ) を立て、Ubuntu 24.04 / 26.04 で起動
+#   2. 80/tcp と 443/tcp を 0.0.0.0/0 から許可 (Let's Encrypt の HTTP-01)
+#   3. headscale_server_url のホスト名 → EIP の A レコードを作成
+#   4. inventory ファイルに [headscale] グループを定義
+#        [headscale]
+#        hs.example.com ansible_user=ubuntu
+#
+# 実行例
+# ------
+#   ansible-playbook -i inventory \
+#     playbooks/conf/linux/headscale_server.yml \
+#     -e headscale_server_url=https://hs.example.com \
+#     -e headscale_base_domain=hs-net.example.com \
+#     -e caddy_admin_email=you@example.com \
+#     -e 'headscale_users=["alice"]'
+#
+# group_vars/headscale.yml に書いておくと毎回 -e 不要:
+#   ---
+#   headscale_server_url: "https://hs.example.com"
+#   headscale_base_domain: "hs-net.example.com"
+#   caddy_admin_email: "you@example.com"
+#   headscale_users:
+#     - alice
+#
+# すでに構築済みのAWS環境に当てる場合の注意
+# -------------------------------------------
+# このplaybookは冪等だが、以下2ファイルは template で「上書き」する:
+#   - /etc/headscale/config.yaml
+#   - /etc/caddy/Caddyfile
+# どちらも `backup: true` を設定済みなので、上書き時は元ファイルが
+#   /etc/headscale/config.yaml.YYYY-MM-DD@HH:MM:SS~ の形で残る。
+# 手で書き換えていた箇所がある場合、テンプレートで再現できているか確認すること。
+#
+# 推奨手順:
+#   1. まず --check --diff でドライランして差分を確認
+#        ansible-playbook -i inventory \
+#          playbooks/conf/linux/headscale_server.yml \
+#          -e ... --check --diff
+#   2. headscale_version は現サーバの値と一致させる(または明示的に上下げる)
+#        ssh ... 'headscale version'
+#   3. acl.hujson は force: false なので既存があれば触らない。
+#      新しいACLを反映したい場合は手で編集するか、一旦バックアップ取って
+#      ファイル削除 → playbook 再実行
+#   4. ユーザは "already exists" を無視するので、headscale_users に
+#      既存名を入れても安全
+#
+# プロビジョニング後にやること
+# ----------------------------
+#   # クライアント用の pre-auth key を発行
+#   ssh ubuntu@hs.example.com \
+#     'sudo headscale preauthkeys create -u alice --reusable --expiration 24h'
+#
+#   # 出力された tskey-... を tailscale_client.yml の vault_tailscale_auth_key に渡す
+# =====================================================================
+
+- hosts: "{{ server | default('headscale') }}"
+  become: true
+
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - register_home
+    - headscale_server
+    - caddy_for_headscale
+
+# vim: et ts=2 sw=2:

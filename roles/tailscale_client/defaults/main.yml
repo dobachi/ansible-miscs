@@ -1,0 +1,36 @@
+---
+# defaults file for roles/tailscale_client
+
+# Use the upstream Tailscale apt repo. Set to false if your distro ships
+# a sufficiently new tailscale package and you want to use that instead.
+tailscale_use_upstream_repo: true
+
+# Distro codename used for the repo URL. Auto-detected from facts.
+# Override only when running on a derivative whose codename differs from
+# the upstream-supported list.
+tailscale_distro_id: "{{ ansible_facts['distribution'] | lower }}"
+tailscale_distro_codename: "{{ ansible_facts['distribution_release'] | lower }}"
+
+# ---------------------------------------------------------------------------
+# `tailscale up` automation
+# ---------------------------------------------------------------------------
+# Coordination server URL. For self-hosted Headscale, point this at your
+# server_url (e.g. https://hs.example.com). Leave empty to fall back to the
+# Tailscale SaaS controlplane.
+tailscale_login_server: ""
+
+# Pre-auth key generated on the server side, e.g.:
+#   headscale preauthkeys create -u <user> --reusable --expiration 24h
+# When empty, the role only installs and enables tailscaled; the user has
+# to log in by hand (`tailscale up --login-server ... --auth-key tskey-...`).
+tailscale_auth_key: ""
+
+# Extra `tailscale up` flags. Listed individually to keep the playbook
+# declarative rather than stuffing them all into one string.
+tailscale_accept_dns: true
+tailscale_accept_routes: true
+tailscale_ssh: true                  # enables Tailscale SSH on this node
+tailscale_advertise_exit_node: false
+tailscale_advertise_routes: []       # e.g. ["192.168.10.0/24", "10.0.0.0/24"]
+tailscale_hostname: ""               # default: machine's hostname
+tailscale_extra_up_args: []          # raw extra flags, appended verbatim

@@ -1,0 +1,119 @@
+---
+# =====================================================================
+# Tailscale クライアント用 playbook (PC, Raspberry Pi, 自宅サーバ等)
+# =====================================================================
+#
+# このplaybookは何をするか
+# ------------------------
+# 任意のLinuxホストに Tailscale クライアントを入れて tailscaled を有効化し、
+# 必要なら `tailscale up` で coordination server (Headscale) に登録する。
+#
+# 対になる playbook:
+#   - サーバ側: playbooks/conf/linux/headscale_server.yml
+#
+# 使う role:
+#   - tailscale_client : tailscale 公式 apt repo + パッケージ + tailscaled 起動
+#                        (auth-key が指定されたら自動で tailscale up まで実行)
+#
+# 必須の変数
+# ----------
+# なし。最小限はパッケージ導入と systemd 有効化のみ。手動ログインしたい
+# 場合は変数なしで実行 → SSH で入って `sudo tailscale up --login-server ...`
+# を叩く。
+#
+# Headscale 連携で自動登録する場合の変数
+# --------------------------------------
+#   tailscale_login_server : "https://hs.example.com"
+#                            self-hosted Headscale の server_url。
+#                            空のままだと Tailscale SaaS controlplane に向く。
+#
+#   tailscale_auth_key     : "tskey-auth-..." (機密)
+#                            Headscale 側で発行:
+#                            sudo headscale preauthkeys create -u alice \
+#                              --reusable --expiration 24h
+#                            必ず Ansible Vault か -e @vault.yml で渡すこと。
+#
+# 任意の動作チューニング (デフォルトは roles/tailscale_client/defaults/main.yml)
+# -------------------------------------------------------------------------
+#   tailscale_ssh                  : true (デフォルト) Tailscale SSH を有効化
+#                                    (ACL側の headscale_acl_enable_ssh と組)
+#   tailscale_accept_dns           : true  -- MagicDNSを受け入れる
+#   tailscale_accept_routes        : true  -- 他ノードが流す経路を受け入れる
+#   tailscale_advertise_exit_node  : false -- このノードを exit node として広告
+#   tailscale_advertise_routes     : []    -- 例: ["192.168.10.0/24"]
+#   tailscale_hostname             : ""    -- tailnet 上の表示名(空ならhostname)
+#   tailscale_extra_up_args        : []    -- 追加フラグを raw で append
+#
+# 事前準備
+# --------
+#   1. サーバ側 (headscale_server.yml) を先に流して Headscale が動いている
+#   2. Headscale で対象ユーザを作成し pre-auth key を発行
+#        sudo headscale users create alice          # 初回のみ
+#        sudo headscale preauthkeys create -u alice --reusable --expiration 24h
+#   3. inventory に [tailscale_clients] グループを定義
+#        [tailscale_clients]
+#        laptop ansible_connection=local ansible_become=true
+#        rpi5   ansible_user=pi
+#        homesvr ansible_user=admin
+#
+# 実行例
+# ------
+# (1) 最小: パッケージだけ入れて手動ログイン
+#   ansible-playbook -i inventory \
+#     playbooks/conf/linux/tailscale_client.yml \
+#     -e server=tailscale_clients -K
+#
+#   その後、各ホストで:
+#     sudo tailscale up --login-server=https://hs.example.com --ssh
+#
+# (2) 自動登録 (auth-key を vault に入れる)
+#   # vault.yml を作成 (一度だけ)
+#   ansible-vault encrypt_string 'tskey-auth-xxxx' \
+#     --name 'vault_tailscale_auth_key' >> group_vars/tailscale_clients.yml
+#
+#   # 実行
+#   ansible-playbook -i inventory \
+#     playbooks/conf/linux/tailscale_client.yml \
+#     -e server=tailscale_clients --ask-vault-pass -K \
+#     -e tailscale_login_server=https://hs.example.com \
+#     -e tailscale_auth_key="{{ vault_tailscale_auth_key }}"
+#
+# (3) 自宅 LAN を流す subnet router として登録
+#   ansible-playbook -i inventory \
+#     playbooks/conf/linux/tailscale_client.yml \
+#     -e server=home_router \
+#     -e tailscale_login_server=https://hs.example.com \
+#     -e tailscale_auth_key=tskey-auth-xxxx \
+#     -e 'tailscale_advertise_routes=["192.168.10.0/24"]' -K
+#
+#   登録後、サーバ側で経路を承認:
+#     sudo headscale routes list
+#     sudo headscale routes enable -r <route-id>
+#
+# 既存環境への影響
+# ----------------
+# - tailscale パッケージ/repoは既にあれば変化なし
+# - tailscaled が既に起動していれば変化なし
+# - tailscale_auth_key を渡した場合、`tailscale up` を毎回実行する。
+#   既にup済みでも同じフラグなら実害なし(再認証されるだけ)。
+#   フラグを変えたい場合は -e で上書き or vars を編集。
+#
+# 個別操作
+# --------
+#   --tags tailscale_up    : up コマンドだけ流す(再キーや設定変更時)
+#   --tags tailscale_client: フルrun (デフォルト)
+# =====================================================================
+
+- hosts: "{{ server | default('tailscale_clients') }}"
+  become: true
+
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - tailscale_client
+
+# vim: et ts=2 sw=2:

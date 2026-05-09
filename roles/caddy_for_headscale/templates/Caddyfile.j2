@@ -1,0 +1,8 @@
+{{ ansible_managed | comment }}
+{
+    email {{ caddy_admin_email }}
+}
+
+{{ headscale_server_url | regex_replace('^https?://', '') }} {
+    reverse_proxy {{ caddy_for_headscale_upstream }}
+}

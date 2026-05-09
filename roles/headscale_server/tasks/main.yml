@@ -1,0 +1,83 @@
+---
+# tasks file for roles/headscale_server
+#
+# Installs Headscale from upstream .deb, deploys /etc/headscale/config.yaml
+# from a template, and seeds an initial ACL policy. The reverse-proxy / TLS
+# layer is handled by the separate caddy_for_headscale role.
+#
+# Tested on Ubuntu 24.04 / 26.04 (amd64, arm64) and Raspberry Pi OS (64-bit).
+
+- block:
+    - name: Ensure required variables are set
+      ansible.builtin.assert:
+        that:
+          - headscale_server_url is defined and headscale_server_url | length > 0
+          - headscale_base_domain is defined and headscale_base_domain | length > 0
+        fail_msg: >-
+          headscale_server_url and headscale_base_domain must be set
+          (typically in group_vars/host_vars).
+
+    - name: Check installed Headscale version
+      ansible.builtin.command: headscale version
+      register: hs_version_check
+      changed_when: false
+      failed_when: false
+
+    - name: Download Headscale .deb
+      ansible.builtin.get_url:
+        url: "https://github.com/juanfont/headscale/releases/download/v{{ headscale_version }}/headscale_{{ headscale_version }}_linux_{{ headscale_arch }}.deb"
+        dest: "/tmp/headscale_{{ headscale_version }}_{{ headscale_arch }}.deb"
+        mode: "0644"
+      when: headscale_version not in (hs_version_check.stdout | default(''))
+
+    - name: Install Headscale
+      ansible.builtin.apt:
+        deb: "/tmp/headscale_{{ headscale_version }}_{{ headscale_arch }}.deb"
+      when: headscale_version not in (hs_version_check.stdout | default(''))
+
+    - name: Deploy Headscale config
+      ansible.builtin.template:
+        src: config.yaml.j2
+        dest: /etc/headscale/config.yaml
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      notify: Restart headscale
+
+    # `force: false` keeps any local edits to the ACL across re-runs.
+    - name: Deploy initial ACL policy (only if absent)
+      ansible.builtin.template:
+        src: acl.hujson.j2
+        dest: /etc/headscale/acl.hujson
+        owner: root
+        group: root
+        mode: "0644"
+        force: false
+      notify: Restart headscale
+
+    - name: Validate Headscale config
+      ansible.builtin.command: headscale configtest
+      changed_when: false
+
+    - name: Enable and start Headscale
+      ansible.builtin.systemd:
+        name: headscale
+        enabled: true
+        state: started
+
+    # Run synchronously so any preceding restart settles before we touch the CLI.
+    - name: Flush handlers before user creation
+      ansible.builtin.meta: flush_handlers
+
+    - name: Create initial users
+      ansible.builtin.command: "headscale users create {{ item }}"
+      loop: "{{ headscale_users | default([]) }}"
+      register: create_user
+      changed_when: "'created' in (create_user.stdout | default(''))"
+      failed_when:
+        - create_user.rc != 0
+        - "'already exists' not in (create_user.stderr | default(''))"
+
+  tags:
+    - headscale_server

@@ -1,0 +1,22 @@
+galaxy_info:
+  author: dobachi
+  description: Install and configure the Tailscale client (works with self-hosted Headscale)
+  license: BSD-3-Clause
+  min_ansible_version: 2.16
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+        - resolute
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - tailscale
+    - headscale
+    - vpn
+    - wireguard
+
+dependencies: []

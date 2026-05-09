@@ -1,0 +1,57 @@
+{{ ansible_managed | comment }}
+server_url: {{ headscale_server_url }}
+listen_addr: {{ headscale_listen_addr }}
+metrics_listen_addr: {{ headscale_metrics_listen_addr }}
+grpc_listen_addr: {{ headscale_grpc_listen_addr }}
+grpc_allow_insecure: false
+
+# TLS termination is handled by Caddy in front of Headscale.
+tls_cert_path: ""
+tls_key_path: ""
+
+noise:
+  private_key_path: /var/lib/headscale/noise_private.key
+
+prefixes:
+  v4: {{ headscale_v4_prefix }}
+  v6: {{ headscale_v6_prefix }}
+  allocation: {{ headscale_prefix_allocation }}
+
+derp:
+  server:
+    enabled: {{ headscale_derp_server_enabled | bool | lower }}
+  urls:
+    - https://controlplane.tailscale.com/derpmap/default
+  paths: []
+  auto_update_enabled: true
+  update_frequency: 24h
+
+disable_check_updates: false
+ephemeral_node_inactivity_timeout: 30m
+
+database:
+  type: sqlite
+  sqlite:
+    path: /var/lib/headscale/db.sqlite
+    write_ahead_log: true
+
+log:
+  format: text
+  level: info
+
+policy:
+  mode: file
+  path: /etc/headscale/acl.hujson
+
+dns:
+  magic_dns: true
+  base_domain: {{ headscale_base_domain }}
+  nameservers:
+    global:
+{% for ns in headscale_global_nameservers %}
+      - {{ ns }}
+{% endfor %}
+  search_domains: {{ headscale_search_domains | to_yaml }}
+
+unix_socket: /var/run/headscale/headscale.sock
+unix_socket_permission: "0770"

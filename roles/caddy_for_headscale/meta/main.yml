@@ -1,0 +1,20 @@
+galaxy_info:
+  author: dobachi
+  description: Install Caddy as a TLS reverse proxy in front of Headscale
+  license: BSD-3-Clause
+  min_ansible_version: 2.16
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - caddy
+    - reverse-proxy
+    - headscale
+
+dependencies: []

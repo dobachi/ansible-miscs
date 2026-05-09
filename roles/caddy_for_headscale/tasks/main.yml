@@ -1,0 +1,70 @@
+---
+# tasks file for roles/caddy_for_headscale
+#
+# Installs Caddy from the upstream Cloudsmith apt repository and writes a
+# minimal Caddyfile that reverse-proxies a Headscale instance running on
+# the same host. TLS is obtained automatically via Let's Encrypt
+# (requires 80/tcp and 443/tcp reachable from the public internet).
+#
+# Note: Cloudflare / Cloudflare Tunnel cannot be used in front of Headscale
+# because Tailscale's protocol relies on WebSocket POST. Use Caddy with a
+# direct DNS A record instead.
+
+- block:
+    - name: Ensure required variables are set
+      ansible.builtin.assert:
+        that:
+          - headscale_server_url is defined and headscale_server_url | length > 0
+          - caddy_admin_email | length > 0
+        fail_msg: >-
+          headscale_server_url and caddy_admin_email must be set
+          (typically in group_vars/host_vars).
+
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name:
+          - debian-keyring
+          - debian-archive-keyring
+          - apt-transport-https
+          - curl
+          - gnupg
+        state: present
+
+    - name: Add Caddy GPG key
+      ansible.builtin.get_url:
+        url: https://dl.cloudsmith.io/public/caddy/stable/gpg.key
+        dest: /usr/share/keyrings/caddy-stable.asc
+        mode: "0644"
+
+    - name: Add Caddy apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/caddy-stable.list
+        mode: "0644"
+        content: |
+          deb [signed-by=/usr/share/keyrings/caddy-stable.asc] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main
+          deb-src [signed-by=/usr/share/keyrings/caddy-stable.asc] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main
+
+    - name: Install Caddy
+      ansible.builtin.apt:
+        name: caddy
+        update_cache: true
+        state: present
+
+    - name: Deploy Caddyfile
+      ansible.builtin.template:
+        src: Caddyfile.j2
+        dest: /etc/caddy/Caddyfile
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      notify: Reload caddy
+
+    - name: Enable and start Caddy
+      ansible.builtin.systemd:
+        name: caddy
+        enabled: true
+        state: started
+
+  tags:
+    - caddy_for_headscale
