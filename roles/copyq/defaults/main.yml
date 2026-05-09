@@ -6,6 +6,19 @@
 copyq_install_shortcut: true
 
 # Keybinding settings (used only when copyq_install_shortcut is true).
+# 既定は `copyq show` (メイン画面)。Wayland 上では `copyq menu` (ポップアップ)
+# はキーボードフォーカスを保持できず一瞬で閉じる既知の問題があるため、
+# トップレベルウィンドウとして開く show を採用。
+# ポップアップ風の挙動を求めるなら CopyQ を XWayland 経由 (QT_QPA_PLATFORM=xcb)
+# で起動した上で copyq_shortcut_command を "copyq menu" に変更する。
 copyq_shortcut_name: "CopyQ clipboard history"
-copyq_shortcut_command: "copyq menu"
+copyq_shortcut_command: "copyq show"
 copyq_shortcut_binding: "<Super>v"
+
+# Configure system-wide autostart so the CopyQ daemon launches at GNOME login.
+# Without this the shortcut hits an empty server on a fresh session.
+# Source is the .desktop ships with the apt package, which already includes
+# `Exec=copyq --start-server show` and X-GNOME-Autostart-Delay=3.
+copyq_enable_autostart: true
+copyq_autostart_src: "/usr/share/applications/com.github.hluk.copyq.desktop"
+copyq_autostart_dest: "/etc/xdg/autostart/com.github.hluk.copyq.desktop"

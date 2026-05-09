@@ -6,3 +6,9 @@ custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybin
 name='{{ copyq_shortcut_name }}'
 command='{{ copyq_shortcut_command }}'
 binding='{{ copyq_shortcut_binding }}'
+
+# GNOME Shell の組み込み toggle-message-tray が既定で <Super>v と <Super>m を
+# 握っており、ユーザのカスタムキーバインドより優先される。CopyQ を Super+V で
+# 呼び出せるようにするため <Super>v を外す (<Super>m は通知パネル用に残す)。
+[org/gnome/shell/keybindings]
+toggle-message-tray=['<Super>m']

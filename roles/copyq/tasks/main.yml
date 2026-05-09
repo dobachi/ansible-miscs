@@ -37,5 +37,18 @@
     when: copyq_install_shortcut | bool
     notify: update dconf db
 
+  # apt パッケージは autostart .desktop を /etc/xdg/autostart/ には置かないので、
+  # /usr/share/applications/ にあるランチャ用 .desktop をそのまま流用して
+  # ログイン時に CopyQ デーモンを自動起動する。
+  - name: Enable CopyQ autostart at GNOME login (system-wide)
+    copy:
+      src: "{{ copyq_autostart_src }}"
+      dest: "{{ copyq_autostart_dest }}"
+      remote_src: true
+      owner: root
+      group: root
+      mode: "0644"
+    when: copyq_enable_autostart | bool
+
   tags:
     - copyq
