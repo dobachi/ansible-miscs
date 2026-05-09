@@ -70,21 +70,31 @@
     - name: Flush handlers before user creation
       ansible.builtin.meta: flush_handlers
 
-    # `headscale users create` exits non-zero when the user is already
-    # present, but the diagnostic moves between stdout/stderr and casing
-    # depending on the version. Treat any "already exists" / "already taken"
-    # variant as a no-op rather than a failure.
-    - name: Create initial users
+    # Look up existing users first and create only the missing ones, instead
+    # of trying to parse the failure text from `headscale users create`. The
+    # error message wording / channel changes between headscale releases, so
+    # this approach sidesteps the whole failed_when guesswork.
+    - name: List existing Headscale users (JSON)
+      ansible.builtin.command: headscale users list --output json
+      register: hs_users_list
+      changed_when: false
+      failed_when: false
+
+    - name: Build set of existing usernames
+      ansible.builtin.set_fact:
+        _headscale_existing_users: >-
+          {{
+            (hs_users_list.stdout | default('[]') | from_json
+              | map(attribute='name') | list)
+            if hs_users_list.rc == 0 else []
+          }}
+
+    - name: Create initial users (skip ones that already exist)
       ansible.builtin.command: "headscale users create {{ item }}"
       loop: "{{ headscale_users | default([]) }}"
+      when: item not in _headscale_existing_users
       register: create_user
-      changed_when: "'created' in ((create_user.stdout | default('')) | lower)"
-      failed_when:
-        - create_user.rc != 0
-        - >-
-          ((create_user.stderr | default('')) ~ ' ' ~ (create_user.stdout | default('')))
-          | lower
-          | regex_search('already (exists|taken)') is none
+      changed_when: create_user.rc == 0
 
   tags:
     - headscale_server
