@@ -34,6 +34,8 @@ Optional:
 | `headscale_users` | `[]` | Initial users to create (idempotent) |
 | `headscale_acl_enable_ssh` | `true` | Seed ACL with a Tailscale SSH allow rule |
 | `headscale_acl_ssh_users` | `[root, autogroup:nonroot]` | Local users that Tailscale SSH may impersonate |
+| `headscale_acl_ssh_src` | `[autogroup:member]` | SSH source. ACL v2 rejects `"*"` here -- use autogroups, users, groups, or tags |
+| `headscale_acl_ssh_dst` | `[autogroup:self]` | SSH destination. Default = the source user's own devices |
 | `headscale_derp_server_enabled` | `false` | Run an embedded DERP server on this host |
 
 Dependencies

@@ -45,6 +45,15 @@ headscale_acl_ssh_users:
   - "root"
   - "autogroup:nonroot"
 
+# SSH src / dst. Tailscale ACL v2 rejects `"*"` here -- only autogroups, user
+# identifiers, groups, and tags are accepted.
+#   autogroup:member -> any tailnet member
+#   autogroup:self   -> only the source user's own devices
+headscale_acl_ssh_src:
+  - "autogroup:member"
+headscale_acl_ssh_dst:
+  - "autogroup:self"
+
 # Required (no sensible default):
 #   headscale_server_url        e.g. https://hs.example.com
 #   headscale_base_domain       e.g. hs-net.example.com (must differ from
