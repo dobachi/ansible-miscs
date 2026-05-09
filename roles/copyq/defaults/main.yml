@@ -1,0 +1,11 @@
+---
+# defaults file for roles/copyq
+
+# Install a system-wide GNOME custom keybinding so that Super+V opens the
+# CopyQ clipboard history menu (Windows-style "Win+V" parity).
+copyq_install_shortcut: true
+
+# Keybinding settings (used only when copyq_install_shortcut is true).
+copyq_shortcut_name: "CopyQ clipboard history"
+copyq_shortcut_command: "copyq menu"
+copyq_shortcut_binding: "<Super>v"

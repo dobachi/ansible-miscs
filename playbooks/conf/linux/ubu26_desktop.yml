@@ -51,5 +51,6 @@
     - keyboard_swapcaps_gnome
     - fcitx5_mozc
     - gnome_terminal_tab_switch
+    - copyq
 
 # vim: et ts=2 sw=2:

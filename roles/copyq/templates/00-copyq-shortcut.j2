@@ -1,0 +1,8 @@
+{{ ansible_managed | comment }}
+[org/gnome/settings-daemon/plugins/media-keys]
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/copyq/']
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/copyq]
+name='{{ copyq_shortcut_name }}'
+command='{{ copyq_shortcut_command }}'
+binding='{{ copyq_shortcut_binding }}'

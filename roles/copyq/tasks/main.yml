@@ -1,0 +1,41 @@
+---
+# tasks file for roles/copyq
+- block:
+  - name: Install CopyQ
+    apt:
+      name: copyq
+      state: present
+
+  - name: Ensure dconf override directory exists
+    file:
+      path: /etc/dconf/db/local.d
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+    when: copyq_install_shortcut | bool
+
+  - name: Deploy dconf override for CopyQ Super+V shortcut
+    template:
+      src: 00-copyq-shortcut.j2
+      dest: /etc/dconf/db/local.d/00-copyq-shortcut
+      owner: root
+      group: root
+      mode: "0644"
+    when: copyq_install_shortcut | bool
+    notify: update dconf db
+
+  - name: Ensure local profile is registered for dconf
+    copy:
+      dest: /etc/dconf/profile/user
+      content: |
+        user-db:user
+        system-db:local
+      owner: root
+      group: root
+      mode: "0644"
+    when: copyq_install_shortcut | bool
+    notify: update dconf db
+
+  tags:
+    - copyq
