@@ -78,7 +78,28 @@
         argv: "{{ ['tailscale', 'up'] + _tailscale_up_args }}"
       register: tailscale_up
       changed_when: tailscale_up.rc == 0
-      no_log: true   # auth key is sensitive
+      failed_when: false
+      no_log: "{{ tailscale_up_no_log | bool }}"
+
+    # Surface diagnostics WITHOUT printing the auth key. The full argv is
+    # still hidden by the no_log on the previous task.
+    - name: Show tailscale up result (auth key redacted)
+      ansible.builtin.debug:
+        msg:
+          - "rc           : {{ tailscale_up.rc | default('?') }}"
+          - "login-server : {{ tailscale_login_server | default('(saas)') }}"
+          - "hostname     : {{ tailscale_hostname | default(ansible_hostname) }}"
+          - "stdout (last): {{ (tailscale_up.stdout_lines | default([]))[-3:] | default([]) }}"
+          - "stderr (last): {{ (tailscale_up.stderr_lines | default([]))[-3:] | default([]) }}"
+
+    - name: Fail if tailscale up returned non-zero
+      ansible.builtin.fail:
+        msg: >-
+          'tailscale up' failed (rc={{ tailscale_up.rc }}). See the previous
+          debug task for the redacted output. Re-run with
+          -e tailscale_up_no_log=false to see the full output (the auth key
+          WILL appear in the log).
+      when: tailscale_up.rc | default(1) != 0
 
   when: tailscale_auth_key | length > 0
   tags:

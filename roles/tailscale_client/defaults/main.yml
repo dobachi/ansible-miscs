@@ -34,3 +34,7 @@ tailscale_advertise_exit_node: false
 tailscale_advertise_routes: []       # e.g. ["192.168.10.0/24", "10.0.0.0/24"]
 tailscale_hostname: ""               # default: machine's hostname
 tailscale_extra_up_args: []          # raw extra flags, appended verbatim
+
+# Hide stdout/stderr of `tailscale up` because the auth key is in argv. Set
+# to false temporarily for debugging -- the auth key WILL appear in the log.
+tailscale_up_no_log: true
