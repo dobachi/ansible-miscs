@@ -1,0 +1,29 @@
+---
+# tasks file for roles/pdf_tools
+#
+# 閲覧 (Okular) + GUI 編集 (PDF Arranger) + CLI 処理 (qpdf / poppler-utils /
+# ghostscript) をまとめて apt 導入する。各カテゴリは変数で個別に on/off 可能。
+
+- block:
+    - name: Install PDF viewer
+      ansible.builtin.apt:
+        name: "{{ pdf_tools_viewer_packages }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: pdf_tools_install_viewer | bool
+
+    - name: Install PDF GUI editor
+      ansible.builtin.apt:
+        name: "{{ pdf_tools_editor_packages }}"
+        state: present
+      when: pdf_tools_install_editor | bool
+
+    - name: Install PDF CLI tools
+      ansible.builtin.apt:
+        name: "{{ pdf_tools_cli_packages }}"
+        state: present
+      when: pdf_tools_install_cli | bool
+
+  tags:
+    - pdf_tools

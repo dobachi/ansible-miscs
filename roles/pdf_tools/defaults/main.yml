@@ -1,0 +1,23 @@
+---
+# defaults file for roles/pdf_tools
+#
+# Adobe Acrobat (Web 版) と補完関係になるよう、ローカルでさっと使うツール群
+# を apt ベースで揃える。OCR / 高品質 Office 変換 / 電子署名は Adobe Web 側
+# に任せる前提なので、それらは含まない。
+
+# ---- 閲覧 (注釈/ハイライト/フォーム入力) ------------------------------
+pdf_tools_install_viewer: true
+pdf_tools_viewer_packages:
+  - okular            # KDE 系 PDF ビューワ。注釈・ハイライト・フォームに強い
+
+# ---- GUI 編集 (結合/分割/並び替え/回転) ------------------------------
+pdf_tools_install_editor: true
+pdf_tools_editor_packages:
+  - pdfarranger       # GTK ドラッグ&ドロップで結合・抽出・回転
+
+# ---- CLI ツール (スクリプト処理 / 変換 / 修復) -----------------------
+pdf_tools_install_cli: true
+pdf_tools_cli_packages:
+  - qpdf              # 結合/分割/暗号化/最適化のモダン CLI
+  - poppler-utils     # pdftotext, pdftoppm, pdfinfo, pdfimages 他
+  - ghostscript       # 圧縮・修復・PostScript 変換

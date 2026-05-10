@@ -11,6 +11,8 @@
 #     (Win+Shift+S 相当) でも起動 (Print キー非搭載機向け)
 #   - TeX Live (apt) for English/Japanese paper writing + TeXstudio editor
 #     (詳細は roles/texlive/README.md と roles/texstudio/README.md)
+#   - PDF tooling: Okular (注釈/フォーム), PDF Arranger (結合/分割),
+#     qpdf / poppler-utils / ghostscript (CLI). 詳細は roles/pdf_tools/README.md
 #
 # Plus the developer baseline rolled into basic.yml (commons/git/tmux/vim/...).
 #
@@ -66,5 +68,8 @@
     # ---- Paper / TeX environment ----
     - texlive
     - texstudio
+
+    # ---- PDF tooling (Okular + PDF Arranger + qpdf/poppler/ghostscript) ----
+    - pdf_tools
 
 # vim: et ts=2 sw=2:
