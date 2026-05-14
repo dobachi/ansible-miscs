@@ -1,0 +1,38 @@
+---
+# defaults file for roles/gnome_screen_share
+#
+# GNOME Remote Desktop の "Desktop Sharing" (= 既にログイン中の dobachi
+# セッションに RDP で乗り入れる) を Tailscale 経由限定で構成する。
+# SSH や GNOME Remote Login (新規 RDP セッション起動) とは独立に共存可能。
+
+# ---- 配備対象ユーザ -------------------------------------------------
+# playbook を実行するデスクトップユーザを既定とする。grdctl と systemctl --user
+# はこのユーザのセッションコンテキスト (DBus) で叩く必要がある。
+gnome_screen_share_user: "{{ ansible_facts.env.SUDO_USER | default(lookup('env', 'USER'), true) }}"
+gnome_screen_share_user_uid: "{{ ansible_facts.env.SUDO_UID | default(ansible_facts['user_uid'] | default('1000'), true) }}"
+
+# ---- パッケージ ----------------------------------------------------
+gnome_screen_share_install: true
+
+# ---- RDP 認証情報 (必須・Vault 強推奨) ------------------------------
+# ansible-vault encrypt_string 'YourStrongPassword' \
+#   --name 'vault_gnome_rdp_password' >> host_vars/k16/vault.yml
+# などで暗号化し、playbook から {{ vault_gnome_rdp_password }} を参照すること。
+gnome_screen_share_rdp_username: ""
+gnome_screen_share_rdp_password: ""
+
+# ---- 動作モード ----------------------------------------------------
+# true = 閲覧のみ (リモート側からマウス/キーボード操作不可)
+gnome_screen_share_view_only: false
+
+# ログアウト中でも user systemd サービスを生かしたまま (RDP で繋げるよう
+# 残しておきたい場合に true)。常時稼働デスクトップなら true を推奨。
+gnome_screen_share_enable_linger: true
+
+# ---- ファイアウォール (Tailscale 限定) ------------------------------
+gnome_screen_share_open_firewall: true
+# Tailscale 公式 CGNAT レンジ (= tailscale_v4_prefix のデフォルトと一致)
+gnome_screen_share_firewall_sources_v4:
+  - "100.64.0.0/10"
+gnome_screen_share_firewall_sources_v6:
+  - "fd7a:115c:a1e0::/48"

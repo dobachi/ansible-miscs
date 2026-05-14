@@ -41,3 +41,9 @@ localhost ansible_connection=local
 # rpi5    ansible_user=pi
 # homesvr ansible_user=admin
 
+# ---------------------------------------------------------------------------
+# Home desktops (GNOME Wayland 機など、画面共有やリモートデスクトップ対象)
+#   Used by: playbooks/conf/linux/gnome_screen_share.yml ほか
+# ---------------------------------------------------------------------------
+[home_desktops]
+k16 ansible_connection=local

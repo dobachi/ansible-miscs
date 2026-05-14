@@ -1,0 +1,12 @@
+galaxy_info:
+  author: your name
+  description: Configure GNOME Remote Desktop screen-sharing (RDP) limited to Tailscale
+  company: your company (optional)
+
+  license: license (GPL-2.0-or-later, MIT, etc)
+
+  min_ansible_version: 2.10
+
+  galaxy_tags: []
+
+dependencies: []

@@ -1,0 +1,128 @@
+---
+# tasks file for roles/gnome_screen_share
+#
+# 構成内容:
+#   1. gnome-remote-desktop の apt 導入 (root)
+#   2. デスクトップユーザの linger 有効化 (root)
+#   3. ufw で 3389/tcp を Tailscale サブネットだけ許可 (root)
+#   4. grdctl で RDP 認証情報設定 / view-only 切替 / 有効化 (デスクトップユーザ)
+#   5. user systemd で gnome-remote-desktop.service を起動 (デスクトップユーザ)
+#
+# 4-5 の per-user タスクは playbook を当該ユーザのシェルから実行する前提
+# (sudo 経由なら -K でデスクトップユーザを SUDO_USER に取れる)。
+# DBus セッションバスへのアクセスは XDG_RUNTIME_DIR を明示して確保する。
+
+- block:
+    - name: Validate RDP credentials are provided
+      ansible.builtin.assert:
+        that:
+          - gnome_screen_share_rdp_username | length > 0
+          - gnome_screen_share_rdp_password | length > 0
+        fail_msg: |
+          gnome_screen_share_rdp_username と gnome_screen_share_rdp_password
+          を設定してください (Vault 推奨)。例:
+            -e gnome_screen_share_rdp_username=remote_user \
+            -e @host_vars/k16/vault.yml
+
+    - name: Install gnome-remote-desktop
+      ansible.builtin.apt:
+        name: gnome-remote-desktop
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: gnome_screen_share_install | bool
+
+    - name: Enable systemd linger for the desktop user
+      ansible.builtin.command:
+        cmd: "loginctl enable-linger {{ gnome_screen_share_user }}"
+      register: _gss_linger
+      changed_when: "'Created' in (_gss_linger.stderr | default(''))"
+      failed_when:
+        - _gss_linger.rc != 0
+        - "'already' not in (_gss_linger.stderr | default('') | lower)"
+      when: gnome_screen_share_enable_linger | bool
+
+    - name: Open RDP port (3389/tcp) from Tailscale IPv4 subnets via ufw
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        to_port: "3389"
+        proto: tcp
+        comment: "GNOME Remote Desktop via Tailscale (v4)"
+      loop: "{{ gnome_screen_share_firewall_sources_v4 }}"
+      when: gnome_screen_share_open_firewall | bool
+
+    - name: Open RDP port (3389/tcp) from Tailscale IPv6 subnets via ufw
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        to_port: "3389"
+        proto: tcp
+        comment: "GNOME Remote Desktop via Tailscale (v6)"
+      loop: "{{ gnome_screen_share_firewall_sources_v6 }}"
+      when: gnome_screen_share_open_firewall | bool
+
+  tags:
+    - gnome_screen_share
+
+# --- ここから per-user タスク (デスクトップユーザの DBus を必要とする) ---
+- block:
+    - name: Set RDP credentials via grdctl
+      ansible.builtin.command:
+        argv:
+          - grdctl
+          - rdp
+          - set-credentials
+          - "{{ gnome_screen_share_rdp_username }}"
+          - "{{ gnome_screen_share_rdp_password }}"
+      no_log: true
+      changed_when: false
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+
+    - name: Set RDP view-only mode
+      ansible.builtin.command:
+        cmd: >-
+          grdctl rdp
+          {{ 'enable-view-only' if gnome_screen_share_view_only | bool
+             else 'disable-view-only' }}
+      changed_when: false
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+
+    - name: Enable RDP via grdctl
+      ansible.builtin.command:
+        cmd: grdctl rdp enable
+      changed_when: false
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+
+    - name: Enable & start gnome-remote-desktop user service
+      ansible.builtin.systemd:
+        name: gnome-remote-desktop.service
+        scope: user
+        enabled: true
+        state: started
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+
+    - name: Show grdctl status (for visibility)
+      ansible.builtin.command:
+        cmd: grdctl status
+      register: _gss_status
+      changed_when: false
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+
+    - name: grdctl status output
+      ansible.builtin.debug:
+        msg: "{{ _gss_status.stdout_lines }}"
+
+  become: false
+  tags:
+    - gnome_screen_share

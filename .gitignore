@@ -12,3 +12,9 @@ instructions/ai_instruction_kits/
 # Git worktree directories
 .gitworktrees/
 gitworktrees/
+
+# Ansible Vault files (機密値はローカル保管、暗号化済でも Git には載せない)
+host_vars/*/vault.yml
+group_vars/*/vault.yml
+group_vars/*_vault.yml
+group_vars/vault_*.yml

@@ -1,0 +1,2 @@
+gnome_screen_share_rdp_username: "dobachi"
+gnome_screen_share_rdp_password: "{{ vault_gnome_rdp_password }}"

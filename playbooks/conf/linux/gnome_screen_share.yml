@@ -1,0 +1,78 @@
+---
+# =====================================================================
+# GNOME Remote Desktop "Desktop Sharing" を Tailscale 経由限定で構成する
+# =====================================================================
+#
+# このplaybookは何をするか
+# ------------------------
+# 既にログイン中の GNOME セッションに RDP で乗り入れて画面共有する
+# (Windows の「画面共有モード」に相当) ための設定を一発で行う:
+#   1. gnome-remote-desktop パッケージ導入
+#   2. デスクトップユーザの systemd linger 有効化 (任意)
+#   3. ufw で 3389/tcp を Tailscale サブネット (100.64.0.0/10) のみ許可
+#   4. grdctl で RDP 認証情報設定 + 有効化
+#   5. user systemd で gnome-remote-desktop.service を起動
+#
+# SSH や GNOME Remote Login (新規 RDP セッションを headless で立ち上げる
+# モード) とは独立に共存可能。
+#
+# 必須変数 (Vault 強推奨)
+# -----------------------
+#   gnome_screen_share_rdp_username : "remote_user"
+#                                     RDP クライアントから入力する username
+#   gnome_screen_share_rdp_password : "{{ vault_gnome_rdp_password }}"
+#                                     同 password。**必ず ansible-vault で
+#                                     暗号化**し、平文では書かないこと。
+#
+# 任意変数 (デフォルトは roles/gnome_screen_share/defaults/main.yml)
+# -----------------------------------------------------------------
+#   gnome_screen_share_view_only           : false (true で閲覧のみに制限)
+#   gnome_screen_share_enable_linger       : true
+#   gnome_screen_share_open_firewall       : true
+#   gnome_screen_share_firewall_sources_v4 : ['100.64.0.0/10']
+#   gnome_screen_share_firewall_sources_v6 : ['fd7a:115c:a1e0::/48']
+#
+# 事前準備
+# --------
+# 1) tailscale 構築済みであること (tailscale_client.yml / headscale_server.yml)
+# 2) 認証情報を Vault 化 (host_vars 推奨):
+#      mkdir -p host_vars/k16
+#      ansible-vault encrypt_string 'StrongPassword' \
+#        --name 'vault_gnome_rdp_password' >> host_vars/k16/vault.yml
+#      cat >> host_vars/k16/main.yml <<EOF
+#      gnome_screen_share_rdp_username: "remote_user"
+#      gnome_screen_share_rdp_password: "{{ vault_gnome_rdp_password }}"
+#      EOF
+# 3) playbook は **デスクトップ内の gnome-terminal** (= dobachi の DBus
+#    セッションが見える場所) から `-K` 付きで実行する。tmux 越しでも
+#    ロール側で XDG_RUNTIME_DIR を補正しているので動くが、デスクトップ
+#    ネイティブの方が堅実。
+#
+# 実行例
+# ------
+#   ansible-playbook -i hosts playbooks/conf/linux/gnome_screen_share.yml \
+#     -e server=localhost --connection=local -K --ask-vault-pass
+#
+# 接続側
+# ------
+# Windows: 標準のリモートデスクトップ接続 (mstsc)
+# macOS  : Microsoft Remote Desktop
+# Linux  : Remmina (apt install remmina)
+#   ホスト: k16.<tailnet>.ts.net (Tailscale MagicDNS) または tailnet IP
+#   ポート: 3389
+#   user / pass: 上で設定した値
+#
+# 既存環境への影響
+# ----------------
+# - SSH (22/tcp) はそのまま。並行で使える
+# - ufw が無効なら ufw ルールは追加されるが効果は休眠状態
+# - 既に gnome-remote-desktop を手で構成済みでも grdctl が冪等に上書き
+# =====================================================================
+
+- hosts: "{{ server | default('localhost') }}"
+  become: true
+
+  roles:
+    - gnome_screen_share
+
+# vim: et ts=2 sw=2:
