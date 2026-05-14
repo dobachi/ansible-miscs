@@ -1,7 +1,14 @@
 keyboard_swapcaps_gnome
 =========
 
-Swap Caps Lock and Ctrl on Ubuntu desktop (GNOME / Wayland) and console.
+Caps Lock キーを Ctrl 化 (デフォルトでは `ctrl:nocaps` = Caps Lock 機能ごと
+廃止) する。`ctrl:swapcaps` (双方向入れ替え) などにも切替可能。
+
+> **注意**: 以前は `ctrl:swapcaps` をデフォルトとしていたが、Windows 側でも
+> 同じ swap を入れているユーザが RDP で Linux に接続すると、scancode 側と
+> xkb 側で「二重入れ替え」が発生して物理 Caps 押下が再度 Caps_Lock として
+> 届く / Ctrl が効かない、というハマりがある。`ctrl:nocaps` だと Caps_Lock
+> キーシムを生成しないので RDP 越しでも素直に Ctrl が利く。
 
 This role configures the swap at two layers:
 
@@ -21,7 +28,7 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `keyboard_swapcaps_xkb_option` | `ctrl:swapcaps` | XKB option string. Other useful values: `ctrl:nocaps`, `caps:ctrl_modifier` |
+| `keyboard_swapcaps_xkb_option` | `ctrl:nocaps` | XKB option string. Other useful values: `ctrl:swapcaps`, `caps:ctrl_modifier` |
 | `keyboard_swapcaps_apply_dconf` | `true` | Apply system-wide GNOME default via dconf |
 | `keyboard_swapcaps_apply_console` | `true` | Apply via `/etc/default/keyboard` (console + login screen) |
 
@@ -59,7 +66,12 @@ Notes
 -----
 
 - A re-login is required for the GNOME session to pick up the new `xkb-options`.
-- Per-user override via `gsettings set org.gnome.desktop.input-sources xkb-options "['ctrl:swapcaps']"` will take precedence over the dconf system default for that user.
+- Per-user override via `gsettings set org.gnome.desktop.input-sources xkb-options "['ctrl:nocaps']"` will take precedence over the dconf system default for that user.
+- **RDP からの利用について**: Windows 側でも Caps↔Ctrl の入れ替え (レジストリ
+  Scancode Map 等) を設定している環境では、本ロールが `ctrl:swapcaps` だと
+  二重入れ替えで詰む (詳細は冒頭の注意)。`ctrl:nocaps` (デフォルト) なら
+  ローカル / RDP / Windows ローカル全ての環境で「物理 Caps の位置 = Ctrl」
+  が成立する。
 
 License
 -------

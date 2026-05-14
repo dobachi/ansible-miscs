@@ -2,10 +2,16 @@
 # defaults file for roles/keyboard_swapcaps_gnome
 
 # XKB option to apply. Common values:
+#   ctrl:nocaps        - Replace Caps Lock with Ctrl (Caps Lock disabled) ★ default
 #   ctrl:swapcaps      - Swap Caps Lock and Ctrl
-#   ctrl:nocaps        - Replace Caps Lock with Ctrl (Caps Lock disabled)
 #   caps:ctrl_modifier - Make Caps Lock an additional Ctrl (Caps Lock kept)
-keyboard_swapcaps_xkb_option: "ctrl:swapcaps"
+#
+# Default は `ctrl:nocaps` (Caps を Ctrl 化、Caps Lock 機能ごと廃止)。
+# `ctrl:swapcaps` だと Windows 側でも同じ swap を入れている環境から RDP 経由で
+# 接続したときに scancode 側と xkb 側で「二重入れ替え」が発生し、物理 Caps が
+# 再び Caps_Lock として届く / Ctrl が効かない不具合に当たる。`ctrl:nocaps` は
+# Caps_Lock キーシムを生成しないので RDP 越しでも素直に Ctrl が利く。
+keyboard_swapcaps_xkb_option: "ctrl:nocaps"
 
 # Apply system-wide GNOME default via dconf override (affects new logins / new users)
 keyboard_swapcaps_apply_dconf: true
