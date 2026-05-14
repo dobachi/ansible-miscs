@@ -1,0 +1,22 @@
+---
+# AMD ローカル AI: 画像生成のみ (ComfyUI)
+#
+# PyTorch ROCm wheel が必要なので ROCm は強制 ON。Ollama / WebUI / Whisper はスキップ。
+#
+# 実行例:
+#   ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_image.yml -e server=localhost
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  vars:
+    rocm_install: true
+    rocm_hsa_override_gfx_version: "10.3.0"
+    comfyui_torch_index: "https://download.pytorch.org/whl/rocm6.4"
+    comfyui_hsa_override_gfx_version: "10.3.0"
+
+  roles:
+    - register_home
+    - amd_gpu_base
+    - python_userland
+    - rocm
+    - comfyui

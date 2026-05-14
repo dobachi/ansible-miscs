@@ -1,0 +1,35 @@
+---
+# defaults file for roles/lemonade
+#
+# Lemonade SDK (https://github.com/lemonade-sdk/lemonade) is an AMD-sponsored
+# OpenAI-compatible local AI server. It bundles llama.cpp / OnnxRuntime-GenAI
+# / FastFlowLM (NPU) / vLLM-ROCm under one HTTP API.
+#
+# DEFAULT OFF because:
+#   - Lemonade's headline differentiators are Ryzen AI NPU (XDNA/XDNA2) and
+#     Strix Halo / Strix Point ROCm. A Radeon 680M (gfx1035) iGPU has none
+#     of those, so Ollama covers the same ground with less moving parts.
+#   - PyPI `lemonade-sdk` pins requires-python <3.14 — we install via pipx
+#     against the python_userland 3.12 to satisfy this.
+#
+# Enable for inventories with NPU / Strix / dGPU hardware.
+
+lemonade_install: false
+
+# Empty = pipx pulls latest. Pin like "10.4.0" if needed.
+lemonade_version: ""
+
+lemonade_host: "127.0.0.1"
+lemonade_port: 13305    # upstream default — keeps Open WebUI's auto-detect happy
+
+# pipx --python target. Falls back if python_userland was skipped.
+lemonade_python: "{{ ai_python | default('/usr/bin/python3.12') }}"
+
+# Optional pip extras: e.g. ["oga-ryzenai"] for NPU support, ["llamacpp"]
+# for the bundled llama.cpp backend. Empty = base install.
+lemonade_extras: []
+
+# Service user (defaults to SUDO_USER). User systemd service.
+lemonade_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+lemonade_extra_env: {}

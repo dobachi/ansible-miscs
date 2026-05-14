@@ -1,0 +1,29 @@
+---
+# AMD ローカル AI: テキスト + チャット UI のみ
+#
+# Ollama (GPU 推論には ROCm が必要) + Open WebUI + llama.cpp Vulkan。
+# ComfyUI は除外。
+#
+# 実行例:
+#   ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_text.yml -e server=localhost
+#
+# ROCm 無し版 (Ollama は CPU 推論):
+#   ansible-playbook ... -e rocm_install=false -e ollama_use_rocm=false
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  vars:
+    rocm_install: true               # Ollama を GPU で動かすため (CPU 運用なら false に)
+    rocm_hsa_override_gfx_version: "10.3.0"
+    llama_backend: vulkan
+    ollama_use_rocm: true
+    ollama_hsa_override_gfx_version: "10.3.0"
+
+  roles:
+    - register_home
+    - amd_gpu_base
+    - python_userland
+    - { role: rocm, when: rocm_install | default(true) | bool }
+    - llama
+    - ollama
+    - open_webui

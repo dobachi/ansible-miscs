@@ -1,0 +1,22 @@
+---
+# AMD ローカル AI: 音声 (Whisper) のみ — 最軽量経路
+#
+# Vulkan で完結するため ROCm を一切インストールしない。
+# Python venv も不要 (whisper.cpp は C++ ネイティブ)。
+#
+# 実行例:
+#   ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_audio.yml -e server=localhost
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  vars:
+    whisper_cpp_backend: vulkan
+    whisper_cpp_models:
+      - base.en
+      # - small      # 必要なら追加
+      # - medium
+
+  roles:
+    - register_home
+    - amd_gpu_base
+    - whisper_cpp

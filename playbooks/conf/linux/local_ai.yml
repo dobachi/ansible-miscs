@@ -1,0 +1,52 @@
+---
+# AMD ローカル AI 環境フルセット (テキスト + チャット UI + 画像 + 音声)
+#
+# 既定値は AMD Radeon 680M (gfx1035, RDNA2 iGPU) + Ubuntu 26.04 ターゲット。
+# 他 GPU でも動くが、HSA_OVERRIDE_GFX_VERSION の値だけは要調整。
+#
+# 実行例:
+#   ansible-playbook -i hosts -K playbooks/conf/linux/local_ai.yml \
+#     -e server=localhost
+#
+# ROCm を入れず Vulkan のみで構成 (Ollama は CPU 推論にフォールバック):
+#   ansible-playbook -i hosts -K playbooks/conf/linux/local_ai.yml \
+#     -e server=localhost -e rocm_install=false -e ollama_use_rocm=false \
+#     -e comfyui_install=false
+#
+# 個別ロール skip 例:
+#   -e comfyui_install=false   # 画像生成スキップ
+#   -e open_webui_install=false # チャット UI スキップ
+#   -e ollama_install=false     # LLM サーバスキップ
+#
+# 詳細は roles/<name>/README.md と docs/local_ai.md を参照。
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  vars:
+    # --- 680M (gfx1035) 向け既定 ---
+    rocm_install: true
+    rocm_hsa_override_gfx_version: "10.3.0"
+
+    llama_backend: vulkan
+
+    ollama_use_rocm: true
+    ollama_hsa_override_gfx_version: "10.3.0"
+
+    comfyui_torch_index: "https://download.pytorch.org/whl/rocm6.4"
+    comfyui_hsa_override_gfx_version: "10.3.0"
+
+    whisper_cpp_backend: vulkan
+
+    lemonade_install: false   # iGPU では非推奨 (README 参照)
+
+  roles:
+    - register_home
+    - amd_gpu_base
+    - python_userland
+    - { role: rocm,        when: rocm_install        | default(true) | bool }
+    - llama
+    - { role: whisper_cpp, when: whisper_cpp_install | default(true) | bool }
+    - { role: ollama,      when: ollama_install      | default(true) | bool }
+    - { role: open_webui,  when: open_webui_install  | default(true) | bool }
+    - { role: comfyui,     when: comfyui_install     | default(true) | bool }
+    - { role: lemonade,    when: lemonade_install    | default(false) | bool }

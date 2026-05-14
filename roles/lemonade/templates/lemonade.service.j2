@@ -1,0 +1,17 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Lemonade SDK server (pipx, user service)
+After=default.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+{% for k, v in (lemonade_extra_env | default({})).items() %}
+Environment="{{ k }}={{ v }}"
+{% endfor %}
+ExecStart=%h/.local/bin/lemonade-server serve --host {{ lemonade_host }} --port {{ lemonade_port }}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

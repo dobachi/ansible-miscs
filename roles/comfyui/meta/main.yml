@@ -1,0 +1,7 @@
+galaxy_info:
+  author: ansible-miscs
+  description: Install ComfyUI in a venv with ROCm PyTorch and run as systemd
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+dependencies: []

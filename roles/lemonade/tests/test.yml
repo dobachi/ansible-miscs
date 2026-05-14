@@ -1,0 +1,9 @@
+---
+- hosts: localhost
+  become: yes
+  vars:
+    lemonade_install: true
+  roles:
+    - register_home
+    - python_userland
+    - lemonade

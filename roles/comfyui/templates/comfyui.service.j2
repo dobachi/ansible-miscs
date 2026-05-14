@@ -1,0 +1,27 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=ComfyUI (ROCm/AMD)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ comfyui_user }}
+Group={{ comfyui_user }}
+WorkingDirectory={{ comfyui_install_dir }}
+SupplementaryGroups=render video
+Environment="HSA_OVERRIDE_GFX_VERSION={{ comfyui_hsa_override_gfx_version }}"
+Environment="HSA_ENABLE_SDMA=0"
+Environment="HIP_VISIBLE_DEVICES={{ comfyui_hip_visible_devices }}"
+Environment="PYTORCH_HIP_ALLOC_CONF={{ comfyui_pytorch_hip_alloc_conf }}"
+ExecStart={{ comfyui_install_dir }}/.venv/bin/python main.py \
+  --listen {{ comfyui_listen }} --port {{ comfyui_port }} {{ comfyui_extra_args }}
+DeviceAllow=/dev/kfd rw
+DeviceAllow=/dev/dri/renderD128 rw
+Restart=on-failure
+RestartSec=5
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

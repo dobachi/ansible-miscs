@@ -1,0 +1,104 @@
+---
+# tasks file for roles/lemonade
+#
+# Optional: install Lemonade SDK as a pipx-managed user service.
+# Hard-asserts that the chosen Python is < 3.14 because lemonade-sdk's
+# wheel pins `requires-python = ">=3.10, <3.14"`.
+
+- name: Skip lemonade install (lemonade_install=false)
+  ansible.builtin.debug:
+    msg: "[lemonade] lemonade_install=false; skipping. (Default off because Radeon 680M does not benefit.)"
+  when: not (lemonade_install | bool)
+
+- block:
+    - name: Validate Python version is in lemonade-sdk's supported range (>=3.10, <3.14)
+      ansible.builtin.command: "{{ lemonade_python }} -c 'import sys; print(sys.version_info[:2])'"
+      register: _lm_py
+      changed_when: false
+
+    - name: Assert Python < 3.14
+      ansible.builtin.assert:
+        that:
+          - "'(3, 14' not in _lm_py.stdout"
+          - "'(3, 15' not in _lm_py.stdout"
+        fail_msg: >-
+          lemonade-sdk wheel requires Python <3.14. Got {{ _lm_py.stdout | trim }}.
+          Apply `roles/python_userland` first so `ai_python` resolves to a 3.12 build.
+
+    - name: Resolve target user UID
+      ansible.builtin.command: "id -u {{ lemonade_user }}"
+      register: _lm_uid
+      changed_when: false
+
+    - name: Set user systemctl env vars
+      ansible.builtin.set_fact:
+        _lm_user_env:
+          XDG_RUNTIME_DIR: "/run/user/{{ _lm_uid.stdout }}"
+          DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ _lm_uid.stdout }}/bus"
+
+    - name: Enable user lingering
+      ansible.builtin.command: "loginctl enable-linger {{ lemonade_user }}"
+      register: _lm_linger
+      changed_when: "'Created file' in _lm_linger.stderr or _lm_linger.rc == 0"
+      failed_when: _lm_linger.rc != 0
+
+    - name: Build pip spec (with extras if any)
+      ansible.builtin.set_fact:
+        _lm_pip_spec: >-
+          {{ ('lemonade-sdk[' ~ (lemonade_extras | join(',')) ~ ']') if lemonade_extras | length > 0 else 'lemonade-sdk' }}{{ ('==' ~ lemonade_version) if lemonade_version | length > 0 else '' }}
+
+    - name: Install lemonade-sdk via pipx
+      become: yes
+      become_user: "{{ lemonade_user }}"
+      ansible.builtin.command:
+        cmd: >-
+          pipx install --python {{ lemonade_python }} {{ _lm_pip_spec }}
+        creates: "{{ ansible_home }}/.local/bin/lemonade-server"
+      async: 1800
+      poll: 30
+      environment: "{{ _lm_user_env }}"
+
+    - name: Ensure user systemd directory exists
+      ansible.builtin.file:
+        path: "{{ ansible_home }}/.config/systemd/user"
+        state: directory
+        owner: "{{ lemonade_user }}"
+        group: "{{ lemonade_user }}"
+        mode: "0755"
+
+    - name: Deploy lemonade user systemd unit
+      ansible.builtin.template:
+        src: lemonade.service.j2
+        dest: "{{ ansible_home }}/.config/systemd/user/lemonade.service"
+        owner: "{{ lemonade_user }}"
+        group: "{{ lemonade_user }}"
+        mode: "0644"
+      register: _lm_unit
+
+    - name: Reload user systemd
+      become: yes
+      become_user: "{{ lemonade_user }}"
+      ansible.builtin.command: systemctl --user daemon-reload
+      environment: "{{ _lm_user_env }}"
+      changed_when: _lm_unit is changed
+
+    - name: Enable + start lemonade
+      become: yes
+      become_user: "{{ lemonade_user }}"
+      ansible.builtin.command: "systemctl --user {{ item }} lemonade"
+      loop:
+        - enable
+        - start
+      register: _lm_svc
+      changed_when: _lm_svc.rc == 0
+      environment: "{{ _lm_user_env }}"
+
+    - name: Report lemonade URL
+      ansible.builtin.debug:
+        msg: >-
+          Lemonade listening on http://{{ lemonade_host }}:{{ lemonade_port }}/api/v1
+          (OpenAI-compatible; API key literal: 'lemonade')
+
+  when: lemonade_install | bool
+  tags:
+    - lemonade

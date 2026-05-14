@@ -1,0 +1,110 @@
+---
+# tasks file for roles/comfyui
+#
+# Clones ComfyUI, creates a venv with the python_userland-provided Python,
+# installs PyTorch from the ROCm wheel index plus the bundled requirements,
+# then registers a system systemd service.
+#
+# CRITICAL gotchas baked in:
+#   - SupplementaryGroups=render video in the unit (User= alone won't grant kfd access)
+#   - HSA_OVERRIDE re-declared in unit (systemd ignores /etc/profile.d/)
+#   - HIP_VISIBLE_DEVICES pinned to avoid surprise enumeration
+#   - PYTORCH_HIP_ALLOC_CONF tuned for small iGPU VRAM partitions
+#   - ROCm wheel install is huge — async with long timeout
+
+- block:
+    - name: Resolve target user
+      ansible.builtin.set_fact:
+        _cf_user: "{{ comfyui_user }}"
+
+    - name: Install build deps (git for clone)
+      ansible.builtin.apt:
+        name:
+          - git
+          - build-essential
+        state: present
+
+    - name: Ensure parent directory exists
+      ansible.builtin.file:
+        path: "{{ comfyui_install_dir | dirname }}"
+        state: directory
+        owner: "{{ _cf_user }}"
+        group: "{{ _cf_user }}"
+        mode: "0755"
+
+    - name: Clone ComfyUI
+      become: yes
+      become_user: "{{ _cf_user }}"
+      ansible.builtin.git:
+        repo: https://github.com/comfyanonymous/ComfyUI.git
+        dest: "{{ comfyui_install_dir }}"
+        version: "{{ comfyui_version }}"
+        depth: 1
+        force: false
+
+    - name: Create Python venv (using ai_python)
+      become: yes
+      become_user: "{{ _cf_user }}"
+      ansible.builtin.command:
+        cmd: "{{ comfyui_python }} -m venv {{ comfyui_install_dir }}/.venv"
+        creates: "{{ comfyui_install_dir }}/.venv/bin/python"
+
+    - name: Upgrade pip / wheel inside venv
+      become: yes
+      become_user: "{{ _cf_user }}"
+      ansible.builtin.command:
+        cmd: "{{ comfyui_install_dir }}/.venv/bin/python -m pip install --upgrade pip wheel setuptools"
+      changed_when: true
+
+    - name: Install PyTorch from ROCm wheel index (slow — multi-GB)
+      become: yes
+      become_user: "{{ _cf_user }}"
+      ansible.builtin.pip:
+        name: "{{ comfyui_torch_packages }}"
+        executable: "{{ comfyui_install_dir }}/.venv/bin/pip"
+        extra_args: "--index-url {{ comfyui_torch_index }}"
+      async: 3600
+      poll: 30
+
+    - name: Install ComfyUI requirements
+      become: yes
+      become_user: "{{ _cf_user }}"
+      ansible.builtin.pip:
+        requirements: "{{ comfyui_install_dir }}/requirements.txt"
+        executable: "{{ comfyui_install_dir }}/.venv/bin/pip"
+      async: 1800
+      poll: 30
+
+    - name: Deploy ComfyUI systemd unit
+      ansible.builtin.template:
+        src: comfyui.service.j2
+        dest: /etc/systemd/system/comfyui.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart comfyui
+
+    - name: Enable + start ComfyUI
+      ansible.builtin.systemd:
+        name: comfyui
+        daemon_reload: true
+        enabled: true
+        state: started
+
+    - name: Wait for ComfyUI HTTP to come up
+      ansible.builtin.uri:
+        url: "http://{{ comfyui_listen }}:{{ comfyui_port }}/system_stats"
+        status_code: 200
+      register: _cf_health
+      retries: 30
+      delay: 5
+      until: _cf_health.status == 200
+      ignore_errors: true
+
+    - name: Report ComfyUI URL
+      ansible.builtin.debug:
+        msg: "ComfyUI listening on http://{{ comfyui_listen }}:{{ comfyui_port }}/"
+
+  when: comfyui_install | bool
+  tags:
+    - comfyui

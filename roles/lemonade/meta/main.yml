@@ -1,0 +1,7 @@
+galaxy_info:
+  author: ansible-miscs
+  description: Install lemonade-sdk (AMD local AI server) via pipx + user systemd
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+dependencies: []

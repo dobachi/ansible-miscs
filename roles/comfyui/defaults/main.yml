@@ -1,0 +1,50 @@
+---
+# defaults file for roles/comfyui
+#
+# Clones ComfyUI, builds a Python venv with the chosen torch index, then
+# runs ComfyUI as a SYSTEM systemd service (system service is required for
+# stable /dev/kfd permission handling on AMD).
+#
+# Default torch index targets ROCm 6.2 wheels (matching `roles/rocm`'s
+# `rocm_version: 6.2.2`). Override for other ROCm series or CPU-only.
+
+comfyui_install: true
+
+# git ref to check out (branch, tag, or sha).
+comfyui_version: "master"
+
+# Where to clone + build. SUDO_USER's home, owned by SUDO_USER.
+comfyui_install_dir: "{{ ansible_home }}/Tool/comfyui"
+
+# Python interpreter for the venv. Use python_userland's `ai_python` fact.
+comfyui_python: "{{ ai_python | default('/usr/bin/python3.12') }}"
+
+# PyTorch wheel index. Match the minor of `roles/rocm` (default 6.4.4 -> rocm6.4).
+# Other available indexes: rocm6.2, rocm6.3, rocm6.4, rocm7.0, rocm7.2, cpu.
+comfyui_torch_index: "https://download.pytorch.org/whl/rocm6.4"
+
+# torch + torchvision packages (kept loose so pip resolves the index's pinned versions).
+comfyui_torch_packages:
+  - torch
+  - torchvision
+
+# Listen address. 127.0.0.1 = localhost only. 0.0.0.0 = LAN-accessible.
+comfyui_listen: "127.0.0.1"
+comfyui_port: 8188
+
+# ComfyUI command-line args added to the systemd ExecStart.
+# --use-pytorch-cross-attention helps memory pressure on small VRAM iGPUs.
+comfyui_extra_args: "--use-pytorch-cross-attention"
+
+# Service user (defaults to SUDO_USER). Must already be in render+video.
+comfyui_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+# HSA override re-declared inside the systemd unit (systemd ignores /etc/profile.d/).
+comfyui_hsa_override_gfx_version: "10.3.0"
+
+# Pin which HIP-visible device this service uses. Useful when a discrete
+# GPU is also present; for iGPU-only systems "0" is correct.
+comfyui_hip_visible_devices: "0"
+
+# Allocator tuning to reduce VRAM fragmentation on small iGPU partitions.
+comfyui_pytorch_hip_alloc_conf: "garbage_collection_threshold:0.8,max_split_size_mb:256"
