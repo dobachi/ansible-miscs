@@ -1,0 +1,98 @@
+---
+# tasks file for roles/ollama
+#
+# 1. Install Ollama via upstream install.sh (idempotency-guarded by checking
+#    `ollama --version` first, mirroring roles/headscale_server's pattern).
+# 2. Drop in a systemd unit override that re-declares HSA_OVERRIDE_GFX_VERSION
+#    so unsupported AMD GPUs (gfx1035 = Radeon 680M) are recognized.
+# 3. Re-assert that the `ollama` service user is in render/video groups.
+# 4. Optionally pre-pull a list of models.
+#
+# WARNING: Ollama has no Vulkan backend. With ollama_use_rocm=false (or with
+# rocm_install=false elsewhere), Ollama runs on CPU only.
+
+- block:
+    - name: Install prerequisites for installer
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+        state: present
+
+    - name: Check installed Ollama version
+      ansible.builtin.command: ollama --version
+      register: _ollama_version_check
+      changed_when: false
+      failed_when: false
+
+    - name: Run Ollama install.sh (only if missing or version mismatch)
+      ansible.builtin.shell: |
+        set -o pipefail
+        {% if ollama_version | length > 0 %}
+        export OLLAMA_VERSION={{ ollama_version }}
+        {% endif %}
+        curl -fsSL https://ollama.com/install.sh | sh
+      args:
+        executable: /bin/bash
+      when: >-
+        _ollama_version_check.rc != 0
+        or (ollama_version | length > 0
+            and ollama_version not in (_ollama_version_check.stdout | default('')))
+      async: 1800
+      poll: 30
+
+    - name: Re-assert ollama service user is in render/video groups
+      ansible.builtin.user:
+        name: "{{ ollama_service_user }}"
+        groups: "{{ ollama_service_user_groups }}"
+        append: true
+
+    - name: Ensure systemd drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/ollama.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy AMD iGPU drop-in (HSA_OVERRIDE_GFX_VERSION + OLLAMA_HOST)
+      ansible.builtin.template:
+        src: amd-igpu.conf.j2
+        dest: /etc/systemd/system/ollama.service.d/amd-igpu.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart ollama
+
+    - name: Reload systemd and ensure ollama is enabled + running
+      ansible.builtin.systemd:
+        name: ollama
+        daemon_reload: true
+        enabled: true
+        state: started
+
+    - name: Flush handlers so any pending restart settles before pulling
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait for ollama HTTP API to come up
+      ansible.builtin.uri:
+        url: "http://{{ ollama_host }}/api/version"
+        status_code: 200
+      register: _ollama_health
+      retries: 10
+      delay: 3
+      until: _ollama_health.status == 200
+
+    - name: Pre-pull requested models (slow on first run)
+      ansible.builtin.command: "ollama pull {{ item }}"
+      environment:
+        OLLAMA_HOST: "{{ ollama_host }}"
+      loop: "{{ ollama_models | default([]) }}"
+      register: _ollama_pull
+      changed_when: "'pulling manifest' in _ollama_pull.stdout or _ollama_pull.rc == 0"
+      async: 1800
+      poll: 30
+
+  when: ollama_install | bool
+  tags:
+    - ollama

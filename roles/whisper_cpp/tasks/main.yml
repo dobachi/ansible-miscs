@@ -1,0 +1,114 @@
+---
+# tasks file for roles/whisper_cpp
+#
+# Clones whisper.cpp, builds with the chosen GGML backend (vulkan default),
+# optionally downloads ggml model files. CLI tool only — no systemd unit.
+
+- block:
+    - name: Validate whisper_cpp_backend
+      ansible.builtin.assert:
+        that:
+          - whisper_cpp_backend in ['vulkan', 'cpu', 'rocm']
+        fail_msg: "whisper_cpp_backend must be one of: vulkan, cpu, rocm"
+
+    - name: Resolve target user
+      ansible.builtin.set_fact:
+        _wcpp_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+    - name: Install common build dependencies
+      ansible.builtin.apt:
+        name: "{{ whisper_cpp_common_build_deps }}"
+        state: present
+        update_cache: true
+
+    - name: Install Vulkan build dependencies
+      ansible.builtin.apt:
+        name: "{{ whisper_cpp_vulkan_deps }}"
+        state: present
+      when: whisper_cpp_backend == 'vulkan'
+
+    - name: Ensure parent directory exists
+      ansible.builtin.file:
+        path: "{{ whisper_cpp_install_dir | dirname }}"
+        state: directory
+        owner: "{{ _wcpp_user }}"
+        group: "{{ _wcpp_user }}"
+        mode: "0755"
+
+    - name: Clone whisper.cpp
+      become: yes
+      become_user: "{{ _wcpp_user }}"
+      ansible.builtin.git:
+        repo: https://github.com/ggml-org/whisper.cpp.git
+        dest: "{{ whisper_cpp_install_dir }}"
+        version: "{{ whisper_cpp_version }}"
+        depth: 1
+        force: false
+
+    # CMakeCache.txt gets written early in configure even on failure. If a
+    # previous run errored after writing the cache (e.g. missing glslc), the
+    # cache lies around and the next run with the `creates:` guard would
+    # silently skip re-configuring. Wipe the build dir when we can see that
+    # the final binary never appeared.
+    - name: Stat existing build artifacts (for stale-cache detection)
+      ansible.builtin.stat:
+        path: "{{ whisper_cpp_install_dir }}/build/bin/whisper-cli"
+      register: _wcpp_bin_stat
+
+    - name: Stat existing CMake cache
+      ansible.builtin.stat:
+        path: "{{ whisper_cpp_install_dir }}/build/CMakeCache.txt"
+      register: _wcpp_cache_stat
+
+    - name: Wipe stale partial build (cache without binary)
+      become: yes
+      become_user: "{{ _wcpp_user }}"
+      ansible.builtin.file:
+        path: "{{ whisper_cpp_install_dir }}/build"
+        state: absent
+      when: _wcpp_cache_stat.stat.exists and not _wcpp_bin_stat.stat.exists
+
+    - name: Configure cmake build
+      become: yes
+      become_user: "{{ _wcpp_user }}"
+      ansible.builtin.command:
+        cmd: >-
+          cmake -S {{ whisper_cpp_install_dir }} -B {{ whisper_cpp_install_dir }}/build
+          {{ '-DGGML_VULKAN=ON' if whisper_cpp_backend == 'vulkan' else '' }}
+          {{ '-DGGML_HIP=ON' if whisper_cpp_backend == 'rocm' else '' }}
+          -DCMAKE_BUILD_TYPE=Release
+        creates: "{{ whisper_cpp_install_dir }}/build/CMakeCache.txt"
+
+    - name: Build whisper.cpp
+      become: yes
+      become_user: "{{ _wcpp_user }}"
+      ansible.builtin.command:
+        cmd: >-
+          cmake --build {{ whisper_cpp_install_dir }}/build
+          --config Release
+          {{ '-j' if whisper_cpp_build_jobs == -1 else '-j ' ~ whisper_cpp_build_jobs }}
+        creates: "{{ whisper_cpp_install_dir }}/build/bin/whisper-cli"
+      async: 1800
+      poll: 30
+
+    - name: Ensure models directory exists
+      ansible.builtin.file:
+        path: "{{ whisper_cpp_install_dir }}/models"
+        state: directory
+        owner: "{{ _wcpp_user }}"
+        group: "{{ _wcpp_user }}"
+        mode: "0755"
+
+    - name: Download requested ggml model files
+      become: yes
+      become_user: "{{ _wcpp_user }}"
+      ansible.builtin.command:
+        cmd: bash models/download-ggml-model.sh {{ item }}
+        chdir: "{{ whisper_cpp_install_dir }}"
+        creates: "{{ whisper_cpp_install_dir }}/models/ggml-{{ item }}.bin"
+      loop: "{{ whisper_cpp_models | default([]) }}"
+      async: 1800
+      poll: 30
+
+  tags:
+    - whisper_cpp

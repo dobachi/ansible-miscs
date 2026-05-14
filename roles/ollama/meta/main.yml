@@ -1,0 +1,7 @@
+galaxy_info:
+  author: ansible-miscs
+  description: Install Ollama with AMD iGPU (gfx1035) HSA_OVERRIDE drop-in
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+dependencies: []

@@ -1,0 +1,43 @@
+---
+# defaults file for roles/ollama
+#
+# Installs Ollama via the official install.sh and adds an HSA override
+# systemd drop-in so unsupported AMD GPUs (like the gfx1035 Radeon 680M)
+# are recognized.
+#
+# IMPORTANT: Ollama has NO Vulkan path. GPU usage requires ROCm. If the
+# host has rocm_install=false (Vulkan-only setup), Ollama will fall back
+# to CPU — still usable for 3B-class quantized models.
+
+ollama_install: true
+
+# Empty = install upstream latest. Pin to a specific tag like "0.5.4" to
+# freeze the version (the install script honors OLLAMA_VERSION).
+ollama_version: ""
+
+# Bind address. 127.0.0.1 keeps it local; switch to 0.0.0.0 only on a
+# trusted network.
+ollama_host: "127.0.0.1:11434"
+
+# Drop-in env vars merged into /etc/systemd/system/ollama.service.d/amd-igpu.conf.
+# The HSA override is what makes gfx1035/gfx1036 actually work.
+ollama_use_rocm: true
+ollama_hsa_override_gfx_version: "10.3.0"
+ollama_extra_env:
+  HSA_ENABLE_SDMA: "0"
+  OLLAMA_KEEP_ALIVE: "10m"
+
+# Models pre-pulled at provisioning time. Pulls are async and can be slow.
+# Empty list = no pre-pull.
+ollama_models:
+  - llama3.2:3b
+  - qwen2.5:3b
+
+# Where the upstream installer creates the service user.
+ollama_service_user: "ollama"
+
+# Add ollama service user to render/video for /dev/kfd access. (The official
+# installer already does this, but we re-assert for safety.)
+ollama_service_user_groups:
+  - render
+  - video

@@ -1,0 +1,102 @@
+---
+# tasks file for roles/open_webui
+#
+# Installs Open WebUI via pipx into the target user's ~/.local/, then runs
+# it as a USER systemd service. `loginctl enable-linger` makes the service
+# survive logout / start at boot without an active login.
+#
+# Footgun handled here: `systemctl --user` requires XDG_RUNTIME_DIR and
+# DBUS_SESSION_BUS_ADDRESS to be set, otherwise Ansible's `systemd` module
+# silently fails or hangs. We set them explicitly via environment.
+
+- block:
+    - name: Resolve target user UID
+      ansible.builtin.command: "id -u {{ open_webui_user }}"
+      register: _ow_uid
+      changed_when: false
+
+    - name: Set user systemctl env vars (XDG_RUNTIME_DIR / DBUS)
+      ansible.builtin.set_fact:
+        _ow_user_env:
+          XDG_RUNTIME_DIR: "/run/user/{{ _ow_uid.stdout }}"
+          DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ _ow_uid.stdout }}/bus"
+
+    - name: Enable user lingering (so the user service starts at boot)
+      ansible.builtin.command: "loginctl enable-linger {{ open_webui_user }}"
+      register: _ow_linger
+      changed_when: "'Created file' in _ow_linger.stderr or _ow_linger.rc == 0"
+      failed_when: _ow_linger.rc not in [0]
+
+    - name: Install Open WebUI via pipx (user-scoped)
+      become: yes
+      become_user: "{{ open_webui_user }}"
+      ansible.builtin.command:
+        cmd: >-
+          pipx install
+          --python {{ open_webui_python }}
+          {{ 'open-webui==' ~ open_webui_version if open_webui_version | length > 0 else 'open-webui' }}
+        creates: "{{ ansible_home }}/.local/bin/open-webui"
+      async: 1800
+      poll: 30
+      environment: "{{ _ow_user_env }}"
+
+    - name: Ensure data directory exists
+      ansible.builtin.file:
+        path: "{{ open_webui_data_dir }}"
+        state: directory
+        owner: "{{ open_webui_user }}"
+        group: "{{ open_webui_user }}"
+        mode: "0755"
+
+    - name: Ensure user systemd directory exists
+      ansible.builtin.file:
+        path: "{{ ansible_home }}/.config/systemd/user"
+        state: directory
+        owner: "{{ open_webui_user }}"
+        group: "{{ open_webui_user }}"
+        mode: "0755"
+
+    - name: Deploy Open WebUI user systemd unit
+      ansible.builtin.template:
+        src: open-webui.service.j2
+        dest: "{{ ansible_home }}/.config/systemd/user/open-webui.service"
+        owner: "{{ open_webui_user }}"
+        group: "{{ open_webui_user }}"
+        mode: "0644"
+      register: _ow_unit_deploy
+
+    - name: Reload user systemd (after unit deploy)
+      become: yes
+      become_user: "{{ open_webui_user }}"
+      ansible.builtin.command: systemctl --user daemon-reload
+      environment: "{{ _ow_user_env }}"
+      changed_when: _ow_unit_deploy is changed
+
+    - name: Enable + start Open WebUI user service
+      become: yes
+      become_user: "{{ open_webui_user }}"
+      ansible.builtin.command: "systemctl --user {{ item }} open-webui"
+      loop:
+        - enable
+        - start
+      register: _ow_svc
+      changed_when: _ow_svc.rc == 0
+      environment: "{{ _ow_user_env }}"
+
+    - name: Wait for Open WebUI HTTP to come up
+      ansible.builtin.uri:
+        url: "http://{{ open_webui_host }}:{{ open_webui_port }}/health"
+        status_code: 200
+      register: _ow_health
+      retries: 30
+      delay: 3
+      until: _ow_health.status == 200
+      ignore_errors: true
+
+    - name: Report Open WebUI URL
+      ansible.builtin.debug:
+        msg: "Open WebUI listening on http://{{ open_webui_host }}:{{ open_webui_port }}/"
+
+  when: open_webui_install | bool
+  tags:
+    - open_webui

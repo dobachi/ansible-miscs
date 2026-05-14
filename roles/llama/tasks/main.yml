@@ -1,36 +1,98 @@
 ---
 # tasks file for roles/llama
+#
+# Download a prebuilt llama.cpp release into ~/Llama/{{ llama_version }}/.
+# Backend-aware URL selection:
+#   cpu    -> llama-<ver>-bin-ubuntu-x64.zip          (default; preserves prior behavior)
+#   vulkan -> llama-<ver>-bin-ubuntu-vulkan-x64.zip   (AMD iGPU/dGPU via Mesa RADV)
+#   rocm   -> not provided by upstream; fail with a pointer to the lemonade build
+
 - block:
-  - name: mkdir_Downloads
-    file:
-      path: "{{ ansible_home }}/Downloads"
-      state: directory
-      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
-      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
-  - name: download package
-    get_url:
-      url: https://github.com/ggml-org/llama.cpp/releases/download/{{ llama_version }}/llama-{{ llama_version }}-bin-ubuntu-x64.zip
-      dest: "{{ansible_home}}/Downloads/llama-{{ llama_version }}-bin-ubuntu-x64.zip"
-      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
-      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
-  - name: mkdir_void
-    file:
-      path: "{{ ansible_home }}/Llama/{{ llama_version }}"
-      state: directory
-      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
-      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
-  - name: unarchive_package
-    unarchive: 
-      src: "{{ ansible_home }}/Downloads/llama-{{ llama_version }}-bin-ubuntu-x64.zip"
-      dest: "{{ ansible_home }}/Llama/{{ llama_version }}"
-      remote_src: yes
-      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
-      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
-      #creates: "{{ansible_home}}/Llama/{{ llama_version }}/bin/void"
-  #- name: configure_alternatives
-  #  alternatives:
-  #    name: void
-  #    path: "{{ansible_home}}/Llama/{{ void_version }}/bin/void"
-  #    link: "{{ansible_home}}/.local/bin/void"
+    - name: Validate llama_backend
+      ansible.builtin.assert:
+        that:
+          - llama_backend in ['cpu', 'vulkan', 'rocm']
+        fail_msg: "llama_backend must be one of: cpu, vulkan, rocm"
+
+    - name: Reject rocm backend (no upstream prebuilt asset)
+      ansible.builtin.fail:
+        msg: >-
+          llama_backend=rocm is not satisfied by upstream llama.cpp releases.
+          For ROCm builds, use https://github.com/lemonade-sdk/llamacpp-rocm
+          or build from source. This role only fetches official assets.
+      when: llama_backend == 'rocm'
+
+    - name: Build asset URL infix
+      ansible.builtin.set_fact:
+        _llama_asset: >-
+          {{ 'llama-' ~ llama_version ~ '-bin-ubuntu-x64.zip'
+             if llama_backend == 'cpu'
+             else 'llama-' ~ llama_version ~ '-bin-ubuntu-' ~ llama_backend ~ '-x64.zip' }}
+
+    - name: Install Vulkan runtime when backend == vulkan
+      ansible.builtin.apt:
+        name:
+          - libvulkan1
+          - mesa-vulkan-drivers
+        state: present
+        update_cache: true
+      when: llama_backend == 'vulkan'
+
+    - name: mkdir_Downloads
+      ansible.builtin.file:
+        path: "{{ ansible_home }}/Downloads"
+        state: directory
+        owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+        group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+    - name: download package
+      ansible.builtin.get_url:
+        url: "https://github.com/ggml-org/llama.cpp/releases/download/{{ llama_version }}/{{ _llama_asset }}"
+        dest: "{{ ansible_home }}/Downloads/{{ _llama_asset }}"
+        owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+        group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+    - name: mkdir_void
+      ansible.builtin.file:
+        path: "{{ ansible_home }}/Llama/{{ llama_version }}"
+        state: directory
+        owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+        group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+    - name: unarchive_package
+      ansible.builtin.unarchive:
+        src: "{{ ansible_home }}/Downloads/{{ _llama_asset }}"
+        dest: "{{ ansible_home }}/Llama/{{ llama_version }}"
+        remote_src: yes
+        owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+        group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+    # ---- Optional llama-server systemd unit -----------------------------
+    - block:
+        - name: Validate llama_server_model_path is set when unit is enabled
+          ansible.builtin.assert:
+            that:
+              - llama_server_model_path | length > 0
+            fail_msg: >-
+              llama_install_server_unit=true requires llama_server_model_path
+              to point at a GGUF model file readable by the target user.
+
+        - name: Deploy llama-server systemd unit
+          ansible.builtin.template:
+            src: llama-server.service.j2
+            dest: /etc/systemd/system/llama-server.service
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: Reload systemd and enable llama-server
+          ansible.builtin.systemd:
+            name: llama-server
+            daemon_reload: true
+            enabled: true
+            state: started
+      when: llama_install_server_unit | bool
+    # --------------------------------------------------------------------
+
   tags:
     - llama

@@ -1,0 +1,19 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Open WebUI (pipx, user service)
+After=default.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment="DATA_DIR={{ open_webui_data_dir }}"
+Environment="OLLAMA_BASE_URL={{ open_webui_ollama_base_url }}"
+{% for k, v in (open_webui_extra_env | default({})).items() %}
+Environment="{{ k }}={{ v }}"
+{% endfor %}
+ExecStart=%h/.local/bin/open-webui serve --host {{ open_webui_host }} --port {{ open_webui_port }}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

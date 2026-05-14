@@ -1,0 +1,32 @@
+---
+# defaults file for roles/open_webui
+#
+# Installs Open WebUI as a pipx-managed application running under the
+# target user as a SYSTEMD USER service. No Docker required.
+#
+# Open WebUI's data directory is intentionally placed in the user's home
+# (not /var/lib) so it survives uninstalls and stays under user ownership.
+
+open_webui_install: true
+
+# Empty = pipx will pull the newest published version. Pin like "0.5.7" if needed.
+open_webui_version: ""
+
+open_webui_host: "127.0.0.1"
+open_webui_port: 8080
+
+# Backend Ollama URL the WebUI should talk to. Defaults to local Ollama.
+open_webui_ollama_base_url: "http://127.0.0.1:11434"
+
+# Per-user data directory (chats, prompts, RAG vectors, uploaded files).
+open_webui_data_dir: "{{ ansible_home }}/.open-webui"
+
+# pipx --python target. Set by python_userland (`ai_python` fact); falls back
+# to /usr/bin/python3.12 if that fact wasn't set (e.g. role used standalone).
+open_webui_python: "{{ ai_python | default('/usr/bin/python3.12') }}"
+
+# Run as which user. Defaults to SUDO_USER.
+open_webui_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+# Disable telemetry / signup if desired
+open_webui_extra_env: {}

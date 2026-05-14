@@ -1,0 +1,13 @@
+{{ ansible_managed | comment }}
+# systemd drop-in: /etc/systemd/system/ollama.service.d/amd-igpu.conf
+# Re-declares HSA_OVERRIDE_GFX_VERSION because systemd does NOT source
+# /etc/profile.d/. Without this, Ollama logs "no compatible GPUs found"
+# on a Radeon 680M (gfx1035) even after `roles/rocm` has run.
+[Service]
+Environment="OLLAMA_HOST={{ ollama_host }}"
+{% if ollama_use_rocm %}
+Environment="HSA_OVERRIDE_GFX_VERSION={{ ollama_hsa_override_gfx_version }}"
+{% endif %}
+{% for k, v in (ollama_extra_env | default({})).items() %}
+Environment="{{ k }}={{ v }}"
+{% endfor %}

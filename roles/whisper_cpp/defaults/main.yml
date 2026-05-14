@@ -1,0 +1,40 @@
+---
+# defaults file for roles/whisper_cpp
+#
+# Builds whisper.cpp from source with the chosen GGML backend. Vulkan is
+# the default and recommended path on AMD — works on RDNA1/2/3 (including
+# the gfx1035 iGPU) without ROCm.
+
+whisper_cpp_version: "v1.7.5"
+
+# Backend: vulkan (default, AMD-friendly), cpu, or rocm.
+# - vulkan: -DGGML_VULKAN=ON, requires libvulkan-dev
+# - cpu:    no GPU flags
+# - rocm:   -DGGML_HIP=ON, requires roles/rocm to have run + ROCm devel headers
+whisper_cpp_backend: vulkan
+
+# Where to clone + build. Per repo convention, lives under the SUDO_USER's home.
+whisper_cpp_install_dir: "{{ ansible_home }}/Tool/whisper.cpp"
+
+# Build deps shared across backends.
+whisper_cpp_common_build_deps:
+  - build-essential
+  - cmake
+  - git
+  - pkg-config
+
+# Backend-specific apt deps.
+whisper_cpp_vulkan_deps:
+  - libvulkan-dev
+  - mesa-vulkan-drivers
+  - glslc           # GLSL -> SPIR-V compiler (CMake FindVulkan requires this)
+  - glslang-tools   # glslangValidator (fallback path some ggml versions use)
+whisper_cpp_rocm_deps: []   # ROCm devel comes from amdgpu-install/hiplibsdk
+
+# Models to download into <install_dir>/models. Use the official names
+# accepted by `models/download-ggml-model.sh` (base.en, small, medium, etc).
+whisper_cpp_models:
+  - base.en
+
+# Number of parallel build jobs. -1 means "use all CPUs".
+whisper_cpp_build_jobs: -1

@@ -1,3 +1,27 @@
 ---
 # defaults file for roles/llama
+#
+# Downloads a prebuilt llama.cpp release binary into ~/Llama/{{version}}/.
+# `llama_backend` controls which release asset is fetched:
+#   * cpu    — official ubuntu x64 build (existing behavior, default)
+#   * vulkan — official ubuntu vulkan build (works on AMD iGPU/dGPU via Mesa RADV)
+#   * rocm   — NOT shipped by upstream llama.cpp; see README.
+
 llama_version: b5604
+
+llama_backend: cpu
+
+# Optional systemd unit for `llama-server`. Off by default to keep the
+# role's existing "drop binaries in user home" behavior intact.
+llama_install_server_unit: false
+llama_server_host: "127.0.0.1"
+llama_server_port: 8081
+# Path to a GGUF model the systemd-managed llama-server should load on
+# boot. Required only when `llama_install_server_unit: true`.
+llama_server_model_path: ""
+llama_server_n_gpu_layers: 99
+llama_server_extra_args: ""
+
+# Re-declared in the systemd unit when backend == rocm so the iGPU
+# (gfx1035) is recognized.
+llama_server_hsa_override_gfx_version: "10.3.0"

@@ -1,0 +1,7 @@
+galaxy_info:
+  author: ansible-miscs
+  description: Build whisper.cpp from source with Vulkan/ROCm/CPU backend
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+dependencies: []
