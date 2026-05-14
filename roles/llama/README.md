@@ -80,6 +80,27 @@ Example Playbook
         llama_server_model_path: /home/user/Models/qwen2.5-3b-instruct-q4_k_m.gguf
 ```
 
+既知の上流問題: RUNPATH のハードコード
+--------------------------------------
+
+llama.cpp の公式プリビルド zip は、バイナリの RUNPATH に GitHub Actions の
+ビルドホストパス (`/home/runner/work/llama.cpp/llama.cpp/build/bin`) が
+そのまま焼き込まれている。そのため展開直後の `llama-cli` は
+
+```
+error while loading shared libraries: libllama.so: cannot open shared object file: ...
+```
+
+で起動失敗する。本ロールは `patchelf --set-rpath '$ORIGIN'` で各バイナリ
+および `lib*.so` の RUNPATH を「自分と同じディレクトリ」に書き換えるタスクを
+unarchive 直後に実行する。**過去に旧版で展開済みだった場合**は手動で:
+
+```bash
+sudo apt-get install -y patchelf
+cd ~/Llama/b5604/build/bin
+for f in llama-* lib*.so; do patchelf --set-rpath '$ORIGIN' "$f"; done
+```
+
 動作確認
 --------
 

@@ -67,6 +67,29 @@
         owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
         group: "{{ ansible_facts['env']['SUDO_USER'] }}"
 
+    # The upstream prebuilt zips ship binaries with a RUNPATH baked in from the
+    # GitHub Actions runner (/home/runner/work/llama.cpp/llama.cpp/build/bin),
+    # which obviously doesn't exist on the end host. patchelf rewrites the
+    # RUNPATH to $ORIGIN so each binary finds its sibling libs.
+    - name: Install patchelf (to fix upstream RUNPATH)
+      ansible.builtin.apt:
+        name: patchelf
+        state: present
+
+    - name: Fix RUNPATH of llama.cpp binaries and libs ($ORIGIN)
+      become: yes
+      become_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      ansible.builtin.shell: |
+        set -e
+        cd "{{ ansible_home }}/Llama/{{ llama_version }}/build/bin"
+        for f in llama-* lib*.so; do
+          [ -f "$f" ] || continue
+          patchelf --set-rpath '$ORIGIN' "$f"
+        done
+      args:
+        executable: /bin/bash
+      changed_when: true
+
     # ---- Optional llama-server systemd unit -----------------------------
     - block:
         - name: Validate llama_server_model_path is set when unit is enabled
