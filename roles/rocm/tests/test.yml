@@ -1,0 +1,7 @@
+---
+- hosts: localhost
+  become: yes
+  vars:
+    rocm_install: true
+  roles:
+    - rocm

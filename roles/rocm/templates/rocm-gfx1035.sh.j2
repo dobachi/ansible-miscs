@@ -1,0 +1,9 @@
+{{ ansible_managed | comment }}
+# ROCm runtime overrides for unsupported gfx targets (e.g. gfx1035 = Radeon 680M).
+# Sourced by interactive bash/zsh from /etc/profile.d/. Do NOT rely on this
+# from systemd units — units must re-declare these via Environment=.
+
+export HSA_OVERRIDE_GFX_VERSION="{{ rocm_hsa_override_gfx_version }}"
+{% for k, v in (rocm_extra_env | default({})).items() %}
+export {{ k }}="{{ v }}"
+{% endfor %}

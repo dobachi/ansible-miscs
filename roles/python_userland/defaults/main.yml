@@ -1,0 +1,28 @@
+---
+# defaults file for roles/python_userland
+#
+# Ubuntu 26.04 ships Python 3.14 by default. Most ML wheels (PyTorch ROCm,
+# ComfyUI deps, lemonade-sdk, open-webui) lag well behind 3.14, so this
+# role installs a stable secondary Python via pyenv and exposes its path
+# to downstream AI roles via the `ai_python` fact.
+
+python_userland_python_version: "3.12.7"
+python_userland_install_pipx: true
+
+# apt packages required by `pyenv install` to actually compile CPython.
+python_userland_build_deps:
+  - build-essential
+  - libssl-dev
+  - zlib1g-dev
+  - libbz2-dev
+  - libreadline-dev
+  - libsqlite3-dev
+  - libncursesw5-dev
+  - xz-utils
+  - tk-dev
+  - libxml2-dev
+  - libxmlsec1-dev
+  - libffi-dev
+  - liblzma-dev
+  - curl
+  - git

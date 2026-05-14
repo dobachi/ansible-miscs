@@ -1,0 +1,68 @@
+---
+# tasks file for roles/amd_gpu_base
+#
+# Foundational AMD GPU userland that every AI workload role can depend on:
+#   - Mesa Vulkan ICD + diagnostic CLIs (vulkaninfo, radeontop, clinfo)
+#   - render/video group membership for the target user
+#   - sanity asserts on /dev/kfd presence and the render group existence
+
+- block:
+    - name: Install AMD GPU userland packages
+      ansible.builtin.apt:
+        name: "{{ amd_gpu_base_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Ensure render group exists (system requirement for /dev/kfd)
+      ansible.builtin.command: getent group render
+      register: _amd_render_grp
+      changed_when: false
+      failed_when: _amd_render_grp.rc != 0
+
+    - name: Add target user to render/video groups
+      ansible.builtin.user:
+        name: "{{ amd_gpu_base_target_user }}"
+        groups: "{{ amd_gpu_base_groups }}"
+        append: true
+
+    - name: Verify amdgpu kernel module is loaded
+      ansible.builtin.shell: |
+        set -o pipefail
+        lsmod | awk '$1=="amdgpu"{found=1} END{exit !found}'
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: _amd_lsmod
+      failed_when: _amd_lsmod.rc != 0
+
+    - name: Verify /dev/kfd present (compute device node)
+      ansible.builtin.stat:
+        path: /dev/kfd
+      register: _amd_kfd
+      failed_when: not _amd_kfd.stat.exists
+
+    - name: Verify /dev/dri/renderD128 present (render node)
+      ansible.builtin.stat:
+        path: /dev/dri/renderD128
+      register: _amd_render
+      failed_when: not _amd_render.stat.exists
+
+    - name: Warn if total RAM is small for image-generation workloads
+      ansible.builtin.debug:
+        msg: >-
+          [amd_gpu_base] Total RAM {{ ansible_facts.memtotal_mb }} MiB <
+          {{ amd_gpu_base_min_ram_mb_warn }} MiB. iGPU UMA shares system RAM,
+          so SDXL / large model image generation may OOM. Consider raising
+          BIOS UMA frame buffer (4 GiB+) and / or sticking to SD1.5 models.
+      when: ansible_facts.memtotal_mb is defined
+            and ansible_facts.memtotal_mb < amd_gpu_base_min_ram_mb_warn
+
+    - name: Reminder — group changes require re-login to take effect
+      ansible.builtin.debug:
+        msg: >-
+          [amd_gpu_base] User '{{ amd_gpu_base_target_user }}' was (re)added to
+          render/video. Log out and back in (or reboot) before running GPU
+          workloads as that user.
+
+  tags:
+    - amd_gpu_base

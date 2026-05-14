@@ -1,0 +1,26 @@
+---
+# defaults file for roles/amd_gpu_base
+#
+# Common AMD GPU userland for both iGPU (Rembrandt/Phoenix Radeon) and
+# discrete Radeon. Mesa Vulkan ICD covers RDNA1/2/3 including gfx1035
+# (Radeon 680M) which ROCm officially refuses.
+
+amd_gpu_base_packages:
+  - mesa-vulkan-drivers
+  - vulkan-tools
+  - libdrm2
+  - radeontop
+  - clinfo
+
+# Groups required to access /dev/kfd (ROCm) and /dev/dri/renderD128 (Vulkan/HIP).
+amd_gpu_base_groups:
+  - render
+  - video
+
+# Target user (defaults to the user invoking sudo). Override per-playbook
+# if running as a different user is required.
+amd_gpu_base_target_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+# Soft RAM warning threshold for image-generation workloads. iGPU UMA
+# carves VRAM out of system RAM; under 16 GiB is borderline for SDXL.
+amd_gpu_base_min_ram_mb_warn: 16000

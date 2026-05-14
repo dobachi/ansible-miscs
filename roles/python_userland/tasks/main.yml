@@ -1,0 +1,78 @@
+---
+# tasks file for roles/python_userland
+#
+# Installs:
+#   1. Build deps for compiling CPython
+#   2. A stable Python (via pyenv, dependency-injected by meta)
+#   3. apt `pipx` for downstream "isolated CLI tool" installs
+#
+# Sets `ai_python` fact = absolute path to the installed CPython binary,
+# which downstream roles (open_webui / comfyui / lemonade) reference.
+
+- block:
+    - name: Install Python build dependencies (apt)
+      ansible.builtin.apt:
+        name: "{{ python_userland_build_deps }}"
+        state: present
+        update_cache: true
+
+    - name: Install pipx (apt)
+      ansible.builtin.apt:
+        name: pipx
+        state: present
+      when: python_userland_install_pipx | bool
+
+    - name: Resolve target user
+      ansible.builtin.set_fact:
+        _pu_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+    - name: Resolve target user's home
+      ansible.builtin.set_fact:
+        _pu_home: "{{ ansible_home | default('/home/' ~ _pu_user) }}"
+
+    - name: Check if requested Python is already installed under pyenv
+      ansible.builtin.stat:
+        path: "{{ _pu_home }}/.pyenv/versions/{{ python_userland_python_version }}/bin/python3"
+      register: _pu_python_stat
+
+    - name: Install requested Python via pyenv (one-shot, slow)
+      become: yes
+      become_user: "{{ _pu_user }}"
+      ansible.builtin.shell: |
+        export PYENV_ROOT="$HOME/.pyenv"
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init -)"
+        pyenv install -s {{ python_userland_python_version }}
+      args:
+        executable: /bin/bash
+      when: not _pu_python_stat.stat.exists
+      # Compiling CPython on a laptop takes a few minutes; let it run.
+      async: 1800
+      poll: 30
+
+    - name: Ensure pipx PATH is initialized for the target user
+      become: yes
+      become_user: "{{ _pu_user }}"
+      ansible.builtin.shell: |
+        pipx ensurepath
+      args:
+        executable: /bin/bash
+      register: _pu_ensurepath
+      changed_when: "'is already in PATH' not in (_pu_ensurepath.stdout + _pu_ensurepath.stderr)"
+      when: python_userland_install_pipx | bool
+
+    - name: Expose ai_python fact for downstream roles
+      ansible.builtin.set_fact:
+        ai_python: "{{ _pu_home }}/.pyenv/versions/{{ python_userland_python_version }}/bin/python3"
+        cacheable: true
+
+    - name: Sanity-check ai_python actually exists and reports the right version
+      become: yes
+      become_user: "{{ _pu_user }}"
+      ansible.builtin.command: "{{ ai_python }} --version"
+      register: _pu_python_check
+      changed_when: false
+      failed_when: python_userland_python_version not in _pu_python_check.stdout
+
+  tags:
+    - python_userland

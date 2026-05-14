@@ -1,0 +1,7 @@
+galaxy_info:
+  author: ansible-miscs
+  description: AMD GPU userland (Mesa Vulkan, render/video group, /dev/kfd assert)
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+dependencies: []

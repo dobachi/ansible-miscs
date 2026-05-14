@@ -1,0 +1,8 @@
+galaxy_info:
+  author: ansible-miscs
+  description: Install AMD ROCm runtime via amdgpu-install (Vulkan-first setups skip)
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+dependencies:
+  - role: amd_gpu_base

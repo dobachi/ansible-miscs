@@ -1,0 +1,11 @@
+galaxy_info:
+  author: ansible-miscs
+  description: Install a stable Python (via pyenv) and pipx for downstream AI roles
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+
+# `pyenv` installs ~/.pyenv for SUDO_USER. We ride on it instead of
+# pulling deadsnakes — Ubuntu 26.04's PPA codename support is uncertain.
+dependencies:
+  - role: pyenv

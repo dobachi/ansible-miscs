@@ -1,0 +1,87 @@
+---
+# tasks file for roles/rocm
+#
+# Installs AMD ROCm runtime via amdgpu-install. ROCm 6.x officially targets
+# Ubuntu 22.04 / 24.04 — 26.04 (`resolute`) is not yet listed but the 24.04
+# (`noble`) repo works transparently for runtime-only installs.
+#
+# Skip entirely when rocm_install=false (Vulkan-only setups don't need it).
+
+- name: Skip ROCm install (rocm_install=false)
+  ansible.builtin.debug:
+    msg: "[rocm] rocm_install=false; skipping ROCm runtime install."
+  when: not (rocm_install | bool)
+
+- block:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name:
+          - wget
+          - gnupg
+          - ca-certificates
+        state: present
+        update_cache: true
+
+    - name: Check if amdgpu-install is already present
+      ansible.builtin.stat:
+        path: /usr/bin/amdgpu-install
+      register: _rocm_installer_stat
+
+    - name: Download amdgpu-install .deb
+      ansible.builtin.get_url:
+        url: "https://repo.radeon.com/amdgpu-install/{{ rocm_version }}/ubuntu/{{ rocm_apt_codename }}/amdgpu-install_{{ rocm_installer_pkg_version }}_all.deb"
+        dest: "/tmp/amdgpu-install.deb"
+        mode: "0644"
+      when: not _rocm_installer_stat.stat.exists
+      # If this 404s, the package filename has shifted. Browse to the directory:
+      #   https://repo.radeon.com/amdgpu-install/{{ rocm_version }}/ubuntu/{{ rocm_apt_codename }}/
+      # and override `rocm_installer_pkg_version` (and `rocm_version` if needed).
+      register: _rocm_deb_dl
+
+    - name: Install amdgpu-install package
+      ansible.builtin.apt:
+        deb: /tmp/amdgpu-install.deb
+      when: not _rocm_installer_stat.stat.exists
+
+    - name: Run amdgpu-install for ROCm runtime
+      ansible.builtin.command: >-
+        amdgpu-install -y
+        --usecase={{ rocm_usecases | join(',') }}
+        {{ '--no-dkms' if rocm_no_dkms else '' }}
+      register: _rocm_install_run
+      # Idempotency proxy: if /opt/rocm exists and rocminfo runs, treat as installed.
+      args:
+        creates: /opt/rocm/bin/rocminfo
+      async: 3600
+      poll: 30
+
+    - name: Verify rocminfo reports a GPU (HSA override applied)
+      ansible.builtin.shell: |
+        set -o pipefail
+        export HSA_OVERRIDE_GFX_VERSION="{{ rocm_hsa_override_gfx_version }}"
+        /opt/rocm/bin/rocminfo | grep -E '^\s*Name:\s+gfx' | head -n1
+      args:
+        executable: /bin/bash
+      register: _rocm_check
+      changed_when: false
+      failed_when: _rocm_check.rc != 0 or _rocm_check.stdout | length == 0
+
+    - name: Drop /etc/profile.d HSA override snippet
+      ansible.builtin.template:
+        src: rocm-gfx1035.sh.j2
+        dest: "{{ rocm_profile_d_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Reminder — systemd units must re-declare HSA_OVERRIDE_GFX_VERSION
+      ansible.builtin.debug:
+        msg: >-
+          [rocm] /etc/profile.d/ snippet installed for interactive shells.
+          systemd-managed services (ollama, comfyui, llama-server) declare
+          the same env in their unit files; do not rely on profile.d for
+          background daemons.
+
+  when: rocm_install | bool
+  tags:
+    - rocm

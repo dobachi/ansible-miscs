@@ -1,0 +1,57 @@
+---
+# defaults file for roles/rocm
+#
+# Installs AMD ROCm runtime via the upstream `amdgpu-install` helper.
+# Default is OFF — Vulkan-only setups (whisper.cpp, llama.cpp Vulkan)
+# never need ROCm. Turn ON when:
+#   * Ollama needs GPU (no Vulkan path in Ollama)
+#   * ComfyUI / PyTorch ROCm wheels are used
+
+rocm_install: false
+
+# ROCm series. Pick the latest that AMD ships an Ubuntu 24.04 .deb for
+# (26.04 is too new — amdgpu-install honors --usecase against the 24.04
+# pool transparently in our experience).
+rocm_version: "6.4.4"
+
+# Exact filename version suffix of the amdgpu-install .deb. AMD's naming
+# regime is irregular and changes between 6.x and 7.x:
+#   ROCm 6.2.0  -> 6.2.60200-1
+#   ROCm 6.2.2  -> 6.2.60202-1
+#   ROCm 6.3.4  -> 6.3.60304-1
+#   ROCm 6.4.4  -> 6.4.60404-1
+#   ROCm 7.0.3  -> 7.0.3.70003-1   (note the extra dotted segment from 7.x)
+#   ROCm 7.2.3  -> 7.2.3.70203-1
+# Confirm the actual filename at:
+#   https://repo.radeon.com/amdgpu-install/<rocm_version>/ubuntu/<codename>/
+rocm_installer_pkg_version: "6.4.60404-1"
+
+# Codename used when constructing the apt repo URL. amdgpu-install
+# itself targets 24.04 (`noble`) until ROCm officially supports 26.04.
+rocm_apt_codename: "noble"
+
+# amdgpu-install usecases. `rocm` pulls runtime + clang; `hiplibsdk`
+# adds the HIP libraries needed by PyTorch ROCm wheels.
+rocm_usecases:
+  - rocm
+  - hiplibsdk
+
+# Skip DKMS build — we use the kernel's in-tree amdgpu module, which
+# is more reliable on 26.04's 7.x kernel than AMD's out-of-tree driver.
+rocm_no_dkms: true
+
+# gfx1035 (Radeon 680M) and gfx1036 (RX 6300/6400 cuts) are not in
+# ROCm's officially supported gfx list. The HSA override pretends the
+# device is gfx1030 (RX 6800/6900), which works for inference at the
+# cost of some kernels falling back to slower paths.
+rocm_hsa_override_gfx_version: "10.3.0"
+
+# Extra environment variables exported alongside HSA_OVERRIDE_GFX_VERSION.
+# HSA_ENABLE_SDMA=0 is the standard fix for "kernel deadlock" on iGPU.
+rocm_extra_env:
+  HSA_ENABLE_SDMA: "0"
+
+# Where to drop the profile.d snippet (interactive shells only — systemd
+# units re-declare these via Environment= because systemd does not source
+# /etc/profile.d/).
+rocm_profile_d_path: "/etc/profile.d/rocm-gfx1035.sh"
