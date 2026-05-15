@@ -1,0 +1,7 @@
+galaxy_info:
+  author: ansible-miscs
+  description: Download HuggingFace model files (GGUF etc) via pipx-installed hf CLI
+  license: BSD
+  min_ansible_version: "2.9"
+  galaxy_tags: []
+dependencies: []

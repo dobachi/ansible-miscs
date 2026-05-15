@@ -1,0 +1,80 @@
+---
+# tasks file for roles/hf_models
+#
+# Installs the HuggingFace `hf` CLI in a pipx venv pinned to ai_python
+# (Python 3.12 from python_userland), then downloads each declared model
+# file to hf_models_dir. Idempotent: re-runs are no-ops once files exist.
+
+- name: Skip hf_models (hf_models_install=false)
+  ansible.builtin.debug:
+    msg: "[hf_models] hf_models_install=false; skipping."
+  when: not (hf_models_install | bool)
+
+- block:
+    - name: Ensure pipx is installed (apt)
+      ansible.builtin.apt:
+        name: pipx
+        state: present
+
+    - name: Ensure target user's pipx PATH is initialized
+      become: yes
+      become_user: "{{ hf_models_user }}"
+      ansible.builtin.shell: pipx ensurepath
+      args:
+        executable: /bin/bash
+      register: _hf_ensurepath
+      changed_when: "'is already in PATH' not in (_hf_ensurepath.stdout + _hf_ensurepath.stderr)"
+
+    - name: Install huggingface_hub[cli] via pipx (uses ai_python)
+      become: yes
+      become_user: "{{ hf_models_user }}"
+      ansible.builtin.command:
+        cmd: >-
+          pipx install --python {{ hf_models_python }} "huggingface_hub[cli]"
+        creates: "{{ ansible_home }}/.local/bin/hf"
+
+    - name: Ensure model directory exists
+      ansible.builtin.file:
+        path: "{{ hf_models_dir }}"
+        state: directory
+        owner: "{{ hf_models_user }}"
+        group: "{{ hf_models_user }}"
+        mode: "0755"
+
+    - name: Download declared model files
+      become: yes
+      become_user: "{{ hf_models_user }}"
+      ansible.builtin.command:
+        cmd: >-
+          {{ ansible_home }}/.local/bin/hf download
+          {{ item.repo }} {{ item.file }}
+          --local-dir {{ hf_models_dir }}
+        creates: "{{ hf_models_dir }}/{{ item.file }}"
+      loop: "{{ hf_models_files }}"
+      loop_control:
+        label: "{{ item.repo }}/{{ item.file }}"
+      environment:
+        # Optional gated-model token. Empty string is harmless.
+        HF_TOKEN: "{{ hf_models_token }}"
+        # Reasonable defaults for large file downloads.
+        HF_HUB_ENABLE_HF_TRANSFER: "0"
+      async: 3600
+      poll: 30
+
+    - name: Report model files present
+      become: yes
+      become_user: "{{ hf_models_user }}"
+      ansible.builtin.shell: |
+        ls -lh {{ hf_models_dir }}/ | tail -n +2
+      args:
+        executable: /bin/bash
+      register: _hf_listing
+      changed_when: false
+
+    - name: Show model directory listing
+      ansible.builtin.debug:
+        var: _hf_listing.stdout_lines
+
+  when: hf_models_install | bool
+  tags:
+    - hf_models

@@ -1,0 +1,35 @@
+---
+# AMD ローカル AI: HuggingFace モデルダウンロード専用プレイブック
+#
+# `hf` CLI を pipx + ai_python (3.12) で導入し、宣言したモデル一覧を
+# ~/Models/ に取得する。`local_ai*.yml` 本体とは独立しており、好きな
+# タイミングで実行可能。
+#
+# 実行例:
+#   ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_models.yml \
+#       -e server=localhost
+#
+# 自前のモデルリストで上書きする例:
+#   ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_models.yml \
+#       -e server=localhost \
+#       -e '{"hf_models_files":[{"repo":"Qwen/Qwen2.5-7B-Instruct-GGUF","file":"qwen2.5-7b-instruct-q4_k_m.gguf"}]}'
+#
+# ゲート付きモデル (要トークン):
+#   ansible-playbook ... -e hf_models_token=hf_xxxxxxxxxxxxx
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  vars:
+    hf_models_install: true
+
+    # 既定リスト: 動作確認しやすい中小型モデル中心。Vulkan iGPU で実用速度。
+    hf_models_files:
+      - repo: Qwen/Qwen2.5-3B-Instruct-GGUF
+        file: qwen2.5-3b-instruct-q4_k_m.gguf
+      - repo: Qwen/Qwen2.5-7B-Instruct-GGUF
+        file: qwen2.5-7b-instruct-q4_k_m.gguf
+
+  roles:
+    - register_home
+    - python_userland
+    - hf_models

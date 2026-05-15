@@ -107,6 +107,36 @@ ansible-playbook -i hosts -K playbooks/conf/linux/local_ai.yml -e server=localho
 | テキスト + チャット UI のみ | `ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_text.yml -e server=localhost` |
 | 画像生成のみ | `ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_image.yml -e server=localhost` |
 | 音声のみ (ROCm 不要・最軽量) | `ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_audio.yml -e server=localhost` |
+| HuggingFace モデルだけ追加 DL | `ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_models.yml -e server=localhost` |
+
+### 2.2.1 HuggingFace モデルの取得
+
+`roles/hf_models` で宣言的に GGUF 等を `~/Models/` に取得できる。
+2 通りの使い方:
+
+**A. 既存セットアップ後にモデルだけ追加 DL** (`local_ai_models.yml` を使用):
+
+```bash
+# 既定リスト (Qwen2.5 3B/7B Instruct GGUF) を取得
+ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_models.yml -e server=localhost
+
+# 任意リストで上書き
+ansible-playbook -i hosts -K playbooks/conf/linux/local_ai_models.yml \
+    -e server=localhost \
+    -e '{"hf_models_files":[{"repo":"bartowski/Llama-3.2-3B-Instruct-GGUF","file":"Llama-3.2-3B-Instruct-Q4_K_M.gguf"}]}'
+```
+
+**B. フル一式実行と同時に DL** (`local_ai.yml` / `local_ai_text.yml` の `-e` で有効化):
+
+```bash
+ansible-playbook -i hosts -K playbooks/conf/linux/local_ai.yml \
+    -e server=localhost \
+    -e hf_models_install=true \
+    -e '{"hf_models_files":[{"repo":"Qwen/Qwen2.5-3B-Instruct-GGUF","file":"qwen2.5-3b-instruct-q4_k_m.gguf"}]}'
+```
+
+ゲート付きモデル (Llama 3 等) を取得する場合は `-e hf_models_token=hf_xxx` を併用。
+**トークンはコミットしないこと**。
 
 ### 2.3 個別ロールスキップ
 

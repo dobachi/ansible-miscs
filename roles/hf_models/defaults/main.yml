@@ -1,0 +1,34 @@
+---
+# defaults file for roles/hf_models
+#
+# Downloads HuggingFace model files (typically GGUF for llama.cpp /
+# whisper.cpp use) via the official `hf` CLI installed in a pipx venv
+# pinned to ai_python (3.12) so it survives the Ubuntu 26.04 / Python 3.14
+# wheel-availability gap.
+
+hf_models_install: false
+
+# Where downloaded model files land. Per repo convention: under SUDO_USER's home.
+hf_models_dir: "{{ ansible_home }}/Models"
+
+# pipx --python target. Falls back if python_userland was skipped.
+hf_models_python: "{{ ai_python | default('/usr/bin/python3.12') }}"
+
+# Run pipx + downloads as which user.
+hf_models_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+# Optional HuggingFace token for gated/private models. Pass via -e or
+# group_vars/host_vars (NEVER commit the token). Leave empty for public models.
+hf_models_token: ""
+
+# List of models to fetch. Each entry is `{repo: <hf_repo_id>, file: <filename>}`.
+# Supports the same arguments as `hf download <repo> <file>`. Use a list of
+# files per repo if you want multiple files from the same repo.
+#
+# Example:
+#   hf_models_files:
+#     - repo: Qwen/Qwen2.5-3B-Instruct-GGUF
+#       file: qwen2.5-3b-instruct-q4_k_m.gguf
+#     - repo: Qwen/Qwen2.5-7B-Instruct-GGUF
+#       file: qwen2.5-7b-instruct-q4_k_m.gguf
+hf_models_files: []

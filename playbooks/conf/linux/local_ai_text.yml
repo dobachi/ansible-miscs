@@ -27,3 +27,4 @@
     - llama
     - ollama
     - open_webui
+    - { role: hf_models, when: hf_models_install | default(false) | bool }

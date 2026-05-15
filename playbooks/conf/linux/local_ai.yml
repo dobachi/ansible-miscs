@@ -18,6 +18,10 @@
 #   -e open_webui_install=false # チャット UI スキップ
 #   -e ollama_install=false     # LLM サーバスキップ
 #
+# モデルも同時に DL したい場合 (既定は hf_models_install=false で OFF):
+#   ansible-playbook ... -e hf_models_install=true \
+#     -e '{"hf_models_files":[{"repo":"Qwen/Qwen2.5-3B-Instruct-GGUF","file":"qwen2.5-3b-instruct-q4_k_m.gguf"}]}'
+#
 # 詳細は roles/<name>/README.md と docs/local_ai.md を参照。
 
 - hosts: "{{ server | default('localhost') }}"
@@ -50,3 +54,4 @@
     - { role: open_webui,  when: open_webui_install  | default(true) | bool }
     - { role: comfyui,     when: comfyui_install     | default(true) | bool }
     - { role: lemonade,    when: lemonade_install    | default(false) | bool }
+    - { role: hf_models,   when: hf_models_install   | default(false) | bool }

@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+  become: yes
+  vars:
+    hf_models_install: true
+    hf_models_files:
+      - repo: Qwen/Qwen2.5-3B-Instruct-GGUF
+        file: qwen2.5-3b-instruct-q4_k_m.gguf
+  roles:
+    - register_home
+    - python_userland
+    - hf_models
