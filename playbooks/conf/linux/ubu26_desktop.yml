@@ -15,6 +15,9 @@
 #     (詳細は roles/quarto/README.md)
 #   - PDF tooling: Okular (注釈/フォーム), PDF Arranger (結合/分割),
 #     qpdf / poppler-utils / ghostscript (CLI). 詳細は roles/pdf_tools/README.md
+#   - 日本語フォント一式 (Noto CJK / IPA / IPAex / Takao など) を導入し、
+#     OnlyOffice / LibreOffice / Inkscape などから利用可能にする
+#     (詳細は roles/japanese_fonts/README.md)
 #
 # Plus the developer baseline rolled into basic.yml (commons/git/tmux/vim/...).
 #
@@ -47,7 +50,7 @@
     # ---- baseline (mirrors basic.yml) ----
     - register_home
     - commons
-    - ipafont
+    - japanese_fonts
     - git
     - tmux
     - vim
@@ -74,5 +77,9 @@
 
     # ---- PDF tooling (Okular + PDF Arranger + qpdf/poppler/ghostscript) ----
     - pdf_tools
+
+    # ---- 日本語フォント (OnlyOffice / LibreOffice / Inkscape などで使用) ----
+    # baseline ロール群の japanese_fonts で導入済みのため、ここでの再掲は不要。
+    # 個別実行したい場合は `--tags japanese_fonts` を付与する。
 
 # vim: et ts=2 sw=2:
