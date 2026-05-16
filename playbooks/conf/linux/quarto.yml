@@ -1,0 +1,27 @@
+---
+# Quarto (科学技術文書のためのオープンソース出版システム) を導入する。
+#
+# upstream の GitHub Releases (https://github.com/quarto-dev/quarto-cli/releases)
+# から .deb を取得して apt でインストールする。
+#
+# 実行例:
+#   # k16 (ローカル接続) に入れる
+#   ansible-playbook -i hosts playbooks/conf/linux/quarto.yml \
+#     -e server=home_desktops
+#
+#   # 任意のホストに直接入れる
+#   ansible-playbook -i hosts playbooks/conf/linux/quarto.yml \
+#     -e server=localhost --connection=local
+#
+#   # 別バージョンを指定
+#   ansible-playbook -i hosts playbooks/conf/linux/quarto.yml \
+#     -e server=home_desktops -e quarto_version=1.10.3
+#
+# 詳しい変数は roles/quarto/README.md を参照。
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  roles:
+    - quarto
+
+# vim: et ts=2 sw=2:
