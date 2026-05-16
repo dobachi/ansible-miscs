@@ -1,2 +1,6 @@
 ---
 # handlers file for roles/gnome_screen_share
+
+- name: update grub
+  ansible.builtin.command:
+    cmd: update-grub

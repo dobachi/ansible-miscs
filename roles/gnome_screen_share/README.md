@@ -1,12 +1,20 @@
 gnome_screen_share
 ==================
 
-GNOME Remote Desktop の **"Desktop Sharing"** (=ログイン済セッションに RDP
-で横入りして同じ画面を共有する) を **Tailscale 経由限定** で構成するロール。
+GNOME Remote Desktop を **Tailscale 経由限定** で構成するロール。GNOME 46+
+で標準採用された `gnome-remote-desktop` の 2 つのモードを並走させ、ログイン
+時/ログアウト時の双方で RDP 接続できるようにする。
 
-GNOME 46+ で標準採用された `gnome-remote-desktop` を `grdctl` 経由で設定し、
-user systemd サービスを起動する。SSH や GNOME Remote Login (新規 RDP セッ
-ションを立ち上げる headless モード) とは独立に共存可能。
+| ポート | モード | 動作 |
+| --- | --- | --- |
+| `3389` | **Desktop Sharing** (user mode) | dobachi が既にログイン中の GNOME セッションに乗り入れ (画面共有) |
+| `3390` | **Remote Login** (system mode, headless) | ログアウト中でも新規 GNOME セッションを起動 |
+
+クライアントは目的に応じて接続先ポートを選ぶ:
+- 「作業継続のため画面共有したい」 → `:3389`
+- 「ログアウト中だけど入りたい」     → `:3390`
+
+SSH (22) や他のサービスとは独立に共存可能。
 
 含まれるもの
 ------------
@@ -15,9 +23,9 @@ user systemd サービスを起動する。SSH や GNOME Remote Login (新規 RD
 | --- | --- |
 | パッケージ導入 | `gnome-remote-desktop` |
 | linger 有効化 | `loginctl enable-linger <user>` (任意、デフォルト ON) |
-| ufw ルール | 3389/tcp を Tailscale CGNAT (`100.64.0.0/10`) 限定で許可 |
-| grdctl 設定 | RDP 認証情報、view-only モード、有効化 |
-| systemd | `gnome-remote-desktop.service` の user 起動 |
+| ufw ルール | 3389/tcp と 3390/tcp を Tailscale CGNAT (`100.64.0.0/10`) 限定で許可 |
+| Desktop Sharing | `grdctl rdp set-credentials / disable-view-only / enable` + user systemd |
+| Remote Login | `grdctl --headless rdp set-credentials / set-port / enable` + system systemd |
 
 Requirements
 ------------
@@ -41,9 +49,26 @@ Role Variables
 | `gnome_screen_share_rdp_password` | `""` (**必須・Vault 推奨**) | 同 password |
 | `gnome_screen_share_view_only` | `false` | true でリモート側からの操作を禁止 (閲覧のみ) |
 | `gnome_screen_share_enable_linger` | `true` | ログアウト後も user services を維持 |
+| `gnome_screen_share_enable_remote_login` | `true` | ログアウト中でも RDP で繋げる system mode を有効化 |
+| `gnome_screen_share_remote_login_port` | `3390` | Remote Login (headless) 用ポート |
 | `gnome_screen_share_open_firewall` | `true` | ufw に許可ルールを追加するか |
 | `gnome_screen_share_firewall_sources_v4` | `['100.64.0.0/10']` | 許可元 IPv4 サブネット |
 | `gnome_screen_share_firewall_sources_v6` | `['fd7a:115c:a1e0::/48']` | 許可元 IPv6 サブネット |
+| `gnome_screen_share_force_virtual_display` | `false` | kernel cmdline で仮想 EDID を強制 (物理モニタ未接続でも headless RDP 可能に)。**反映に reboot 必須** |
+| `gnome_screen_share_virtual_display_connector` | `"HDMI-A-1"` | 仮想化対象の DRM connector 名 (`/sys/class/drm/card*/status` で確認) |
+| `gnome_screen_share_virtual_display_mode` | `"1920x1080@60D"` | 仮想 EDID の解像度/モード |
+
+### 仮想ディスプレイ (force_virtual_display) の挙動と副作用
+
+GNOME Remote Desktop の Remote Login (headless) は本来仮想 framebuffer で動く設計ですが、Wayland + 物理モニタ未接続の条件で GDM/Mutter が compositor を起動できず即死することがあります。`gnome_screen_share_force_virtual_display: true` にすると `/etc/default/grub` の `GRUB_CMDLINE_LINUX_DEFAULT` に `video=<connector>:<mode>` を追加し、kernel に常時仮想 EDID を信じ込ませることでこの問題を回避します。
+
+- **物理モニタ接続時**: 実 EDID が優先されるので挙動は変わらない
+- **物理モニタ未接続時**: 仮想 1920x1080 のディスプレイが OS に見える
+- 副作用:
+  - GNOME 設定 → ディスプレイにファントム表示
+  - 「ディスプレイ無し」を理由とする自動サスペンドが無効化される
+  - GPU メモリ ~10MB 常時確保
+- 反映には reboot が必要 (kernel cmdline 変更のため、`update-grub` は handler で自動実行)
 
 Vault によるパスワード保護
 --------------------------
@@ -82,11 +107,18 @@ ansible-playbook playbooks/conf/linux/gnome_screen_share.yml \
 - macOS: Microsoft Remote Desktop (App Store)
 - Linux: Remmina (`apt install remmina`)
 
-Tailscale 経由で接続:
+Tailscale 経由で接続。目的でポート切替:
 
 ```
+# 既存セッションに乗り入れ (画面共有)
 host: k16.<tailnet>.ts.net   (または tailscale-assigned IP)
 port: 3389
+user: <gnome_screen_share_rdp_username>
+pass: <gnome_screen_share_rdp_password>
+
+# ログアウト中でも新規セッション (Remote Login)
+host: k16.<tailnet>.ts.net
+port: 3390
 user: <gnome_screen_share_rdp_username>
 pass: <gnome_screen_share_rdp_password>
 ```

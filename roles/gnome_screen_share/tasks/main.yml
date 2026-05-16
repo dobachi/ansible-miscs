@@ -24,9 +24,15 @@
             -e gnome_screen_share_rdp_username=remote_user \
             -e @host_vars/k16/vault.yml
 
-    - name: Install gnome-remote-desktop
+    - name: Install gnome-remote-desktop and helpers
       ansible.builtin.apt:
-        name: gnome-remote-desktop
+        name:
+          - gnome-remote-desktop
+          # dbus-launch を提供。Remote Login (headless) の system service が
+          # 起動時に dbus-launch を子プロセスとして呼ぶので必須。
+          - dbus-x11
+          # 自前 TLS cert 生成に使う
+          - openssl
         state: present
         update_cache: true
         cache_valid_time: 3600
@@ -41,6 +47,22 @@
         - _gss_linger.rc != 0
         - "'already' not in (_gss_linger.stderr | default('') | lower)"
       when: gnome_screen_share_enable_linger | bool
+
+    # 物理ディスプレイ未接続でも headless RDP セッションを起動できるよう、
+    # kernel cmdline で指定 HDMI connector に仮想 EDID を強制する。
+    # 物理モニタ接続時は実 EDID が優先されるため、通常運用への影響は最小。
+    # 反映には reboot が必要 (handler は update-grub のみ実行)。
+    - name: Force virtual display in /etc/default/grub for headless RDP
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: >-
+          ^(GRUB_CMDLINE_LINUX_DEFAULT="(?:(?!video={{
+          gnome_screen_share_virtual_display_connector }}:).)*)"\s*$
+        replace: >-
+          \1 video={{ gnome_screen_share_virtual_display_connector }}:{{
+          gnome_screen_share_virtual_display_mode }}"
+      when: gnome_screen_share_force_virtual_display | bool
+      notify: update grub
 
     - name: Open RDP port (3389/tcp) from Tailscale IPv4 subnets via ufw
       community.general.ufw:
@@ -61,6 +83,190 @@
         comment: "GNOME Remote Desktop via Tailscale (v6)"
       loop: "{{ gnome_screen_share_firewall_sources_v6 }}"
       when: gnome_screen_share_open_firewall | bool
+
+    # ---- Remote Login (system mode, headless) -----------------------
+    # ログアウト中も新規セッションを受け付けるための system service。
+    # Desktop Sharing (user mode, 3389) と衝突しないよう別ポートを使う。
+    # TLS cert は自前 RSA で生成し、gnome-remote-desktop 用 user で所有させる
+    # (apt パッケージが auto-generate するロジックが不安定なため)。
+
+    # gnome-remote-desktop daemon は GKeyFile fallback (TPM 非搭載時) で
+    # /etc/gnome-remote-desktop/grd.conf に設定を保存する。atomic write のため
+    # 一時ファイル (grd.conf.XXXXXX) をディレクトリ内に作ってから rename する
+    # ので、**ディレクトリそのものに gnome-remote-desktop user の書込権**が必要。
+    - name: Ensure /etc/gnome-remote-desktop exists and is writable by gnome-remote-desktop user
+      ansible.builtin.file:
+        path: /etc/gnome-remote-desktop
+        state: directory
+        owner: gnome-remote-desktop
+        group: gnome-remote-desktop
+        mode: "0755"
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Generate RSA TLS certificate for Remote Login mode
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -newkey
+          - rsa:2048
+          - -nodes
+          - -keyout
+          - /etc/gnome-remote-desktop/rdp-tls.key
+          - -x509
+          - -days
+          - "3650"
+          - -out
+          - /etc/gnome-remote-desktop/rdp-tls.crt
+          - -subj
+          - "/CN={{ ansible_hostname }}"
+          - -addext
+          - "subjectAltName=DNS:{{ ansible_hostname }}"
+        creates: /etc/gnome-remote-desktop/rdp-tls.crt
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Set ownership and mode of Remote Login TLS files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: gnome-remote-desktop
+        group: gnome-remote-desktop
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: /etc/gnome-remote-desktop/rdp-tls.crt, mode: "0644" }
+        - { path: /etc/gnome-remote-desktop/rdp-tls.key, mode: "0600" }
+      when: gnome_screen_share_enable_remote_login | bool
+
+    # grdctl --headless は実行ユーザの $HOME/.config 配下に config を書く。
+    # ansible が become: yes で root 実行すると HOME=/root に書かれ、daemon
+    # (gnome-remote-desktop user) からは見えない。`runuser -u gnome-remote-desktop --`
+    # でラップして daemon と同じ user context で実行する。
+    # (sudo -u だと nologin shell のため /etc/shells エラー、runuser は --
+    #  で直接コマンド実行なので shell チェックを通る)
+    - name: Set TLS certificate path for Remote Login
+      ansible.builtin.command:
+        argv:
+          - runuser
+          - -u
+          - gnome-remote-desktop
+          - --
+          - grdctl
+          - --headless
+          - rdp
+          - set-tls-cert
+          - /etc/gnome-remote-desktop/rdp-tls.crt
+      changed_when: false
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Set TLS key path for Remote Login
+      ansible.builtin.command:
+        argv:
+          - runuser
+          - -u
+          - gnome-remote-desktop
+          - --
+          - grdctl
+          - --headless
+          - rdp
+          - set-tls-key
+          - /etc/gnome-remote-desktop/rdp-tls.key
+      changed_when: false
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Set RDP credentials for system-mode (Remote Login)
+      ansible.builtin.command:
+        argv:
+          - runuser
+          - -u
+          - gnome-remote-desktop
+          - --
+          - grdctl
+          - --headless
+          - rdp
+          - set-credentials
+          - "{{ gnome_screen_share_rdp_username }}"
+          - "{{ gnome_screen_share_rdp_password }}"
+      no_log: true
+      changed_when: false
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Set Remote Login (headless) RDP port
+      ansible.builtin.command:
+        argv:
+          - runuser
+          - -u
+          - gnome-remote-desktop
+          - --
+          - grdctl
+          - --headless
+          - rdp
+          - set-port
+          - "{{ gnome_screen_share_remote_login_port | string }}"
+      changed_when: false
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Enable Remote Login (headless) RDP
+      ansible.builtin.command:
+        argv:
+          - runuser
+          - -u
+          - gnome-remote-desktop
+          - --
+          - grdctl
+          - --headless
+          - rdp
+          - enable
+      changed_when: false
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Enable & start system gnome-remote-desktop.service
+      ansible.builtin.systemd:
+        name: gnome-remote-desktop.service
+        enabled: true
+        state: started
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: Open Remote Login RDP port from Tailscale IPv4 subnets via ufw
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        to_port: "{{ gnome_screen_share_remote_login_port }}"
+        proto: tcp
+        comment: "GNOME Remote Login (headless) via Tailscale (v4)"
+      loop: "{{ gnome_screen_share_firewall_sources_v4 }}"
+      when:
+        - gnome_screen_share_open_firewall | bool
+        - gnome_screen_share_enable_remote_login | bool
+
+    - name: Open Remote Login RDP port from Tailscale IPv6 subnets via ufw
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        to_port: "{{ gnome_screen_share_remote_login_port }}"
+        proto: tcp
+        comment: "GNOME Remote Login (headless) via Tailscale (v6)"
+      loop: "{{ gnome_screen_share_firewall_sources_v6 }}"
+      when:
+        - gnome_screen_share_open_firewall | bool
+        - gnome_screen_share_enable_remote_login | bool
+
+    - name: Show grdctl --headless status (for visibility)
+      ansible.builtin.command:
+        argv:
+          - runuser
+          - -u
+          - gnome-remote-desktop
+          - --
+          - grdctl
+          - --headless
+          - status
+      register: _gss_headless_status
+      changed_when: false
+      when: gnome_screen_share_enable_remote_login | bool
+
+    - name: grdctl --headless status output
+      ansible.builtin.debug:
+        msg: "{{ _gss_headless_status.stdout_lines }}"
+      when: gnome_screen_share_enable_remote_login | bool
 
   tags:
     - gnome_screen_share

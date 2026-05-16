@@ -1,20 +1,27 @@
 ---
 # =====================================================================
-# GNOME Remote Desktop "Desktop Sharing" を Tailscale 経由限定で構成する
+# GNOME Remote Desktop を Tailscale 経由限定で構成する
 # =====================================================================
 #
 # このplaybookは何をするか
 # ------------------------
-# 既にログイン中の GNOME セッションに RDP で乗り入れて画面共有する
-# (Windows の「画面共有モード」に相当) ための設定を一発で行う:
+# GNOME Remote Desktop の 2 モードを並走させ、ログイン時/ログアウト時の
+# 両方で RDP 接続できるように構成する:
+#   * 3389: Desktop Sharing (user mode) - 既存セッションに乗り入れ (画面共有)
+#   * 3390: Remote Login    (system mode, headless) - 新規セッション起動
+#
+# 詳細手順:
 #   1. gnome-remote-desktop パッケージ導入
 #   2. デスクトップユーザの systemd linger 有効化 (任意)
-#   3. ufw で 3389/tcp を Tailscale サブネット (100.64.0.0/10) のみ許可
-#   4. grdctl で RDP 認証情報設定 + 有効化
-#   5. user systemd で gnome-remote-desktop.service を起動
+#   3. ufw で 3389/tcp と 3390/tcp を Tailscale サブネット (100.64.0.0/10) のみ許可
+#   4. grdctl で Desktop Sharing 用認証情報設定 + 有効化 (user systemd)
+#   5. grdctl --headless で Remote Login 用認証情報設定 + ポート 3390 + 有効化 (system systemd)
 #
-# SSH や GNOME Remote Login (新規 RDP セッションを headless で立ち上げる
-# モード) とは独立に共存可能。
+# 接続先ポートで挙動切替:
+#   - 3389 → 既にログイン中なら画面共有、未ログインなら接続不可
+#   - 3390 → 常に新規 GNOME セッションを起動 (ログアウト中でも OK)
+#
+# SSH (22) や他のサービスとは独立に共存可能。
 #
 # 必須変数 (Vault 強推奨)
 # -----------------------

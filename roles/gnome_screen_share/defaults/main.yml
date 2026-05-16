@@ -1,9 +1,16 @@
 ---
 # defaults file for roles/gnome_screen_share
 #
-# GNOME Remote Desktop の "Desktop Sharing" (= 既にログイン中の dobachi
-# セッションに RDP で乗り入れる) を Tailscale 経由限定で構成する。
-# SSH や GNOME Remote Login (新規 RDP セッション起動) とは独立に共存可能。
+# GNOME Remote Desktop の 2 つのモードを Tailscale 経由限定で構成する:
+#   1. Desktop Sharing (user service, port 3389)
+#      既にログイン中の dobachi セッションに乗り入れる (画面共有)
+#   2. Remote Login (system service, port 3390, headless)
+#      ログアウト中でも RDP で繋いで新規 GNOME セッションを起動
+#
+# ポートを分けることで両モードを共存させる:
+#   - 3389 に接続 → 既存セッションを共有 (logged-in 時のみ動作)
+#   - 3390 に接続 → 常に新規 headless セッション (logged-out でも OK)
+# SSH (22) とも独立に共存可能。
 
 # ---- 配備対象ユーザ -------------------------------------------------
 # playbook を実行するデスクトップユーザを既定とする。grdctl と systemctl --user
@@ -21,13 +28,20 @@ gnome_screen_share_install: true
 gnome_screen_share_rdp_username: ""
 gnome_screen_share_rdp_password: ""
 
-# ---- 動作モード ----------------------------------------------------
+# ---- Desktop Sharing (user mode, port 3389) -------------------------
 # true = 閲覧のみ (リモート側からマウス/キーボード操作不可)
 gnome_screen_share_view_only: false
 
 # ログアウト中でも user systemd サービスを生かしたまま (RDP で繋げるよう
 # 残しておきたい場合に true)。常時稼働デスクトップなら true を推奨。
 gnome_screen_share_enable_linger: true
+
+# ---- Remote Login (system mode, headless) ---------------------------
+# ログアウト中も RDP で接続できるようにする (system service を有効化)
+gnome_screen_share_enable_remote_login: true
+
+# Remote Login 用ポート。Desktop Sharing と衝突を避けるため 3389 以外に設定。
+gnome_screen_share_remote_login_port: 3390
 
 # ---- ファイアウォール (Tailscale 限定) ------------------------------
 gnome_screen_share_open_firewall: true
@@ -36,3 +50,19 @@ gnome_screen_share_firewall_sources_v4:
   - "100.64.0.0/10"
 gnome_screen_share_firewall_sources_v6:
   - "fd7a:115c:a1e0::/48"
+
+# ---- 仮想ディスプレイ強制 (ディスプレイ未接続でも headless RDP を使う) ----
+# 物理モニタを外した状態で 3390 にアクセスすると GDM/Mutter が compositor を
+# 作れず即死する問題を回避するため、kernel cmdline で指定の HDMI connector に
+# 仮想 EDID を強制 ("connected" として常時認識させる)。
+# 物理モニタ接続時は実 EDID が優先されるので通常運用に影響しない。
+#
+# 副作用:
+#   - 物理モニタ未接続時、GNOME 設定の "ディスプレイ" にファントム表示が出る
+#   - "ディスプレイ無し" を理由とする自動サスペンドが起きなくなる
+#   - GPU メモリを ~10 MB 常時確保
+#
+# 反映には reboot 必須 (kernel cmdline 変更のため)。
+gnome_screen_share_force_virtual_display: false
+gnome_screen_share_virtual_display_connector: "HDMI-A-1"
+gnome_screen_share_virtual_display_mode: "1920x1080@60D"

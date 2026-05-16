@@ -1,2 +1,6 @@
 gnome_screen_share_rdp_username: "dobachi"
 gnome_screen_share_rdp_password: "{{ vault_gnome_rdp_password }}"
+
+# k16 はディスプレイ未接続でも RDP (Remote Login) でログインできるように
+# kernel cmdline で HDMI-A-1 の仮想 EDID を強制。反映には reboot が必要。
+gnome_screen_share_force_virtual_display: true
