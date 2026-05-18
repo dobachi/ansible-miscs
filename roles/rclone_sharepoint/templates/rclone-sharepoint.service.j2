@@ -1,0 +1,24 @@
+[Unit]
+Description=rclone mount {{ rclone_sharepoint_remote_name }} -> {{ rclone_sharepoint_mountpoint }}
+After=network-online.target
+Wants=network-online.target
+AssertPathIsDirectory={{ rclone_sharepoint_mountpoint }}
+
+[Service]
+Type=notify
+ExecStartPre=/bin/mkdir -p {{ rclone_sharepoint_mountpoint }}
+ExecStart=/usr/bin/rclone mount {{ rclone_sharepoint_remote_name }}: {{ rclone_sharepoint_mountpoint }} \
+  --config {{ rclone_sharepoint_config_path }} \
+  --allow-other \
+  --uid {{ _rclone_sharepoint_uid }} \
+  --gid {{ _rclone_sharepoint_gid }} \
+  --umask {{ rclone_sharepoint_umask }} \
+  --dir-cache-time {{ rclone_sharepoint_dir_cache_time }} \
+  --vfs-cache-mode {{ rclone_sharepoint_vfs_cache_mode }} \
+  --log-level {{ rclone_sharepoint_log_level }}
+ExecStop=/bin/fusermount3 -u {{ rclone_sharepoint_mountpoint }}
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

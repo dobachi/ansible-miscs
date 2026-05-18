@@ -1,0 +1,43 @@
+---
+# defaults file for roles/rclone_sharepoint
+#
+# rclone を使って SharePoint Online のドキュメントライブラリを
+# /mnt/sharepoint (既定) に systemd 経由で常設マウントする。
+
+# このロール本体を実行するかのスイッチ。
+# 既定 false にしてあるので、ubu26_desktop.yml の roles 一覧に組み込んでも
+# host_vars で明示的に true にしないと何もしない。
+rclone_sharepoint_enable: false
+
+# rclone.conf 内の remote 名。systemd unit の `rclone mount <name>:` で使う。
+rclone_sharepoint_remote_name: "sharepoint"
+
+# マウント先 (ディレクトリは無ければ作成する)。
+rclone_sharepoint_mountpoint: "/mnt/sharepoint"
+
+# FUSE マウントを通して読み書きする対象のユーザー名。
+# getent で uid/gid を解決し、--uid / --gid に渡す。
+rclone_sharepoint_user: "dobachi"
+
+# FUSE umask。デフォルトは 022 (所有者書込可、他は読取専用)。
+rclone_sharepoint_umask: "022"
+
+# --vfs-cache-mode (off | minimal | writes | full)。
+# writes は書き込み時のみキャッシュする。SharePoint で実用的な既定値。
+rclone_sharepoint_vfs_cache_mode: "writes"
+
+# --dir-cache-time。ディレクトリエントリのキャッシュ TTL。
+rclone_sharepoint_dir_cache_time: "1000h"
+
+# rclone のログレベル (DEBUG | INFO | NOTICE | ERROR)。
+rclone_sharepoint_log_level: "INFO"
+
+# rclone.conf の配置先 (systemd unit は root で実行されるので /root 配下)。
+rclone_sharepoint_config_path: "/root/.config/rclone/rclone.conf"
+
+# rclone.conf の中身。host_vars 側で vault 変数を渡す前提。
+# 例: rclone_sharepoint_conf_content: "{{ vault_rclone_sharepoint_conf }}"
+rclone_sharepoint_conf_content: ""
+
+# systemd unit ファイル名 (拡張子込み)。
+rclone_sharepoint_service_name: "rclone-sharepoint.service"

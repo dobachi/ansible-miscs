@@ -1,0 +1,11 @@
+---
+# handlers file for roles/rclone_sharepoint
+
+- name: daemon-reload
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: restart rclone-sharepoint
+  ansible.builtin.systemd:
+    name: "{{ rclone_sharepoint_service_name }}"
+    state: restarted

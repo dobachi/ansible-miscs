@@ -1,0 +1,28 @@
+---
+# SharePoint Online のドキュメントライブラリを rclone + systemd で
+# /mnt/sharepoint (既定) に常設マウントする。
+#
+# 事前に下記の手動準備が必要 (詳細は roles/rclone_sharepoint/README.md):
+#   1. 別マシンで `rclone config` を実行して [sharepoint] remote を作る
+#   2. その rclone.conf を ansible-vault で host_vars/<host>/vault.yml に投入
+#   3. host_vars/<host>/main.yml に下記を書く:
+#        rclone_sharepoint_enable: true
+#        rclone_sharepoint_conf_content: "{{ vault_rclone_sharepoint_conf }}"
+#
+# 実行例:
+#   # k16 (home_desktops, ローカル接続) にだけ適用
+#   ansible-playbook -i hosts playbooks/conf/linux/rclone_sharepoint.yml \
+#     -e server=home_desktops --ask-vault-pass
+#
+#   # 任意のホスト
+#   ansible-playbook -i hosts playbooks/conf/linux/rclone_sharepoint.yml \
+#     -e server=localhost --connection=local --ask-vault-pass
+#
+# rclone_sharepoint_enable: false (既定) なホストでは何も起きない。
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  roles:
+    - rclone_sharepoint
+
+# vim: et ts=2 sw=2:

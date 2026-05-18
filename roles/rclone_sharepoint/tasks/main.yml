@@ -1,0 +1,97 @@
+---
+# tasks file for roles/rclone_sharepoint
+#
+# rclone mount で SharePoint を systemd 経由で常設マウントする。
+# rclone_sharepoint_enable: true かつ Debian 系のときだけ動く。
+
+- block:
+
+    - name: Install rclone and FUSE prerequisites
+      ansible.builtin.apt:
+        name:
+          - rclone
+          - fuse3
+          - ca-certificates
+        state: present
+        update_cache: yes
+
+    - name: Enable user_allow_other in /etc/fuse.conf (required for --allow-other)
+      ansible.builtin.lineinfile:
+        path: /etc/fuse.conf
+        regexp: '^\s*#?\s*user_allow_other'
+        line: "user_allow_other"
+        state: present
+        create: no
+
+    - name: Look up uid/gid of mount-access user
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ rclone_sharepoint_user }}"
+
+    - name: Set uid/gid facts for systemd unit
+      ansible.builtin.set_fact:
+        _rclone_sharepoint_uid: "{{ getent_passwd[rclone_sharepoint_user][1] }}"
+        _rclone_sharepoint_gid: "{{ getent_passwd[rclone_sharepoint_user][2] }}"
+
+    - name: Ensure mount point directory exists
+      ansible.builtin.file:
+        path: "{{ rclone_sharepoint_mountpoint }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure rclone config directory exists
+      ansible.builtin.file:
+        path: "{{ rclone_sharepoint_config_path | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Fail when rclone.conf content is empty
+      ansible.builtin.fail:
+        msg: >-
+          rclone_sharepoint_conf_content is empty. Put your rclone.conf
+          (with the [{{ rclone_sharepoint_remote_name }}] remote) into
+          host_vars/<host>/vault.yml as vault_rclone_sharepoint_conf and
+          reference it from host_vars/<host>/main.yml. See
+          roles/rclone_sharepoint/README.md.
+      when: (rclone_sharepoint_conf_content | default('') | trim) == ""
+
+    - name: Deploy rclone.conf
+      ansible.builtin.copy:
+        content: "{{ rclone_sharepoint_conf_content }}"
+        dest: "{{ rclone_sharepoint_config_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      notify: restart rclone-sharepoint
+
+    - name: Deploy systemd unit for rclone mount
+      ansible.builtin.template:
+        src: rclone-sharepoint.service.j2
+        dest: "/etc/systemd/system/{{ rclone_sharepoint_service_name }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - daemon-reload
+        - restart rclone-sharepoint
+
+    - name: Enable and start rclone-sharepoint.service
+      ansible.builtin.systemd:
+        name: "{{ rclone_sharepoint_service_name }}"
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+  tags:
+    - rclone_sharepoint
+    - sharepoint
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - rclone_sharepoint_enable | bool
+
+# vim: set et ts=2 sw=2:

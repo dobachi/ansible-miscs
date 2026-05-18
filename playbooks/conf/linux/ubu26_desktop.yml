@@ -16,6 +16,9 @@
 #   - OpenSpec (https://github.com/Fission-AI/OpenSpec) を npm -g で導入。
 #     Node.js が古ければ NodeSource 22.x も合わせて入れる
 #     (詳細は roles/openspec/README.md)
+#   - rclone mount で SharePoint Online を /mnt/sharepoint に常設マウント
+#     既定 disabled (rclone_sharepoint_enable: true を host_vars で立てた
+#     ホストでのみ動く)。詳細は roles/rclone_sharepoint/README.md
 #   - PDF tooling: Okular (注釈/フォーム), PDF Arranger (結合/分割),
 #     qpdf / poppler-utils / ghostscript (CLI). 詳細は roles/pdf_tools/README.md
 #   - 日本語フォント一式 (Noto CJK / IPA / IPAex / Takao など) を導入し、
@@ -80,6 +83,9 @@
 
     # ---- Spec-driven dev (OpenSpec CLI, npm -g) ----
     - openspec
+
+    # ---- SharePoint Online mount (rclone + systemd, host_vars で有効化) ----
+    - rclone_sharepoint
 
     # ---- PDF tooling (Okular + PDF Arranger + qpdf/poppler/ghostscript) ----
     - pdf_tools
