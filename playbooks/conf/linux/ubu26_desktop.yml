@@ -13,6 +13,9 @@
 #     (詳細は roles/texlive/README.md と roles/texstudio/README.md)
 #   - Quarto (upstream .deb) for scientific & technical publishing
 #     (詳細は roles/quarto/README.md)
+#   - OpenSpec (https://github.com/Fission-AI/OpenSpec) を npm -g で導入。
+#     Node.js が古ければ NodeSource 22.x も合わせて入れる
+#     (詳細は roles/openspec/README.md)
 #   - PDF tooling: Okular (注釈/フォーム), PDF Arranger (結合/分割),
 #     qpdf / poppler-utils / ghostscript (CLI). 詳細は roles/pdf_tools/README.md
 #   - 日本語フォント一式 (Noto CJK / IPA / IPAex / Takao など) を導入し、
@@ -74,6 +77,9 @@
     - texlive
     - texstudio
     - quarto
+
+    # ---- Spec-driven dev (OpenSpec CLI, npm -g) ----
+    - openspec
 
     # ---- PDF tooling (Okular + PDF Arranger + qpdf/poppler/ghostscript) ----
     - pdf_tools

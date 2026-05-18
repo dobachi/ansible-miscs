@@ -1,0 +1,27 @@
+---
+# OpenSpec (https://github.com/Fission-AI/OpenSpec) を導入する。
+#
+# `@fission-ai/openspec` を npm でグローバル導入する。
+# Node.js が未導入 / 古い場合は NodeSource から 22.x (LTS) を入れる。
+#
+# 実行例:
+#   # k16 (home_desktops, ローカル接続) に入れる
+#   ansible-playbook -i hosts playbooks/conf/linux/openspec.yml \
+#     -e server=home_desktops
+#
+#   # 任意のホストに直接入れる
+#   ansible-playbook -i hosts playbooks/conf/linux/openspec.yml \
+#     -e server=localhost --connection=local
+#
+#   # バージョンを固定したい
+#   ansible-playbook -i hosts playbooks/conf/linux/openspec.yml \
+#     -e server=home_desktops -e openspec_version=0.5.0
+#
+# 詳しい変数は roles/openspec/README.md を参照。
+
+- hosts: "{{ server | default('localhost') }}"
+  become: yes
+  roles:
+    - openspec
+
+# vim: et ts=2 sw=2:

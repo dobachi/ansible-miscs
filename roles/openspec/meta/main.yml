@@ -1,0 +1,12 @@
+galaxy_info:
+  author: dobachi
+  description: Install OpenSpec (Fission-AI/OpenSpec) globally via npm
+  license: BSD-3-Clause
+  min_ansible_version: "2.9"
+  galaxy_tags:
+    - openspec
+    - ai
+    - spec
+    - npm
+
+dependencies: []

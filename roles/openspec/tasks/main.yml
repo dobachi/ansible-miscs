@@ -1,0 +1,76 @@
+---
+# tasks file for roles/openspec
+#
+# Debian/Ubuntu に OpenSpec (https://github.com/Fission-AI/OpenSpec) を
+# npm 経由でグローバル導入する。
+#   1. node --version を見て、未導入 or 要件未満なら NodeSource から
+#      Node.js {{ openspec_node_major }}.x を apt で入れる。
+#   2. npm で {{ openspec_npm_package }} をグローバル導入する。
+# その他の OS では何もしない (when ガードで skip)。
+
+- block:
+
+    - name: Detect installed Node.js version (if any)
+      ansible.builtin.command: node --version
+      register: _openspec_node_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Decide whether Node.js needs to be (re)installed
+      ansible.builtin.set_fact:
+        _openspec_need_node: >-
+          {{ _openspec_node_installed.rc != 0
+             or (_openspec_node_installed.stdout | default('') | regex_replace('^v', ''))
+                is version(openspec_node_min_version, '<') }}
+
+    - name: Install prerequisites for NodeSource apt repository
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+        state: present
+        update_cache: yes
+      when: _openspec_need_node
+
+    - name: Add NodeSource apt signing key
+      ansible.builtin.get_url:
+        url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+        dest: "{{ openspec_nodesource_keyring }}"
+        mode: "0644"
+      when: _openspec_need_node
+
+    - name: Add NodeSource apt repository (Node {{ openspec_node_major }}.x)
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by={{ openspec_nodesource_keyring }}] https://deb.nodesource.com/node_{{ openspec_node_major }}.x nodistro main"
+        filename: nodesource
+        state: present
+        update_cache: yes
+      when: _openspec_need_node
+
+    - name: Install Node.js (apt)
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+      when: _openspec_need_node
+
+    - name: Install OpenSpec globally via npm (latest)
+      community.general.npm:
+        name: "{{ openspec_npm_package }}"
+        state: latest
+        global: yes
+      when: openspec_version == "latest"
+
+    - name: Install OpenSpec globally via npm (pinned version)
+      community.general.npm:
+        name: "{{ openspec_npm_package }}"
+        version: "{{ openspec_version }}"
+        state: present
+        global: yes
+      when: openspec_version != "latest"
+
+  tags:
+    - openspec
+  when: ansible_facts['os_family'] == "Debian"
+
+# vim: set et ts=2 sw=2:

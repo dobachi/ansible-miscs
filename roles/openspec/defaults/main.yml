@@ -1,0 +1,25 @@
+---
+# defaults file for roles/openspec
+#
+# OpenSpec (https://github.com/Fission-AI/OpenSpec) を npm 経由で
+# グローバルに導入する。
+
+# 導入する OpenSpec のバージョン。
+#   "latest" の場合は npm 上の最新を取りに行く (state=latest)。
+#   特定バージョンを固定したい場合は "0.x.y" のように上書きする。
+openspec_version: "latest"
+
+# OpenSpec の npm パッケージ名。
+openspec_npm_package: "@fission-ai/openspec"
+
+# OpenSpec が要求する Node.js の最低バージョン (README 記載値)。
+# 現状の node が未導入 / これ未満の場合に NodeSource から入れる。
+openspec_node_min_version: "20.19.0"
+
+# Node.js が未導入 / 要件未満だった場合に NodeSource の apt リポジトリで
+# 入れる Node のメジャー系列。Ubuntu/Debian 同梱の nodejs は古いことが
+# 多いため、NodeSource 22.x (Active LTS) を既定とする。
+openspec_node_major: "22"
+
+# NodeSource の apt 鍵の保存先 (signed-by 用)。
+openspec_nodesource_keyring: "/usr/share/keyrings/nodesource.asc"
