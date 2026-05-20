@@ -84,6 +84,12 @@ Tags
 
 - `tailscale_client`: full role
 - `tailscale_up`: only the registration step (handy for re-keying)
+- `tailscale_set`: only the flag-reconcile step (push changes to `tailscale_ssh`, `tailscale_accept_dns`, `tailscale_accept_routes`, `tailscale_advertise_exit_node`, `tailscale_advertise_routes`, `tailscale_hostname` on an already-up node, without needing an auth key)
+
+Reconcile vs. register
+----------------------
+
+`tailscale up` runs **only** when the node is not yet Running (or `tailscale_up_force=true`), because re-running it with a single-use auth key would fail. To still push flag changes (e.g. flipping `tailscale_ssh` on) onto a node that was already up before the change, the role also runs `tailscale set` on every play when the backend is Running. `tailscale set` is idempotent and does not require an auth key.
 
 Security note
 -------------

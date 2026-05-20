@@ -46,8 +46,9 @@
     - tailscale_client
 
 # ---------------------------------------------------------------------------
-# `tailscale up` registration. Skipped entirely when no auth key is set, so
-# users who prefer to log in interactively are not blocked.
+# Inspect tailscale state once. Drives both the `tailscale up` registration
+# path (skips when already Running) and the `tailscale set` reconcile path
+# (only runs when already Running).
 # ---------------------------------------------------------------------------
 
 - block:
@@ -66,15 +67,18 @@
         msg:
           - "BackendState  : {{ _ts_state.BackendState | default('(unknown)') }}"
           - "ControlURL    : {{ _ts_state.Self.ControlURL | default('(none)') if _ts_state.Self is defined else '(none)' }}"
-          - "Will run up?  : {{ _ts_should_up | default(true) }}"
-      vars:
-        # Skip 'tailscale up' when already Running and not explicitly forced.
-        # Single-use auth keys are consumed on first up, so re-running with
-        # the same key would fail otherwise.
-        _ts_should_up: >-
-          {{ (tailscale_up_force | default(false) | bool)
-             or (_ts_state.BackendState | default('') != 'Running') }}
+          - "Will run up?  : {{ (tailscale_up_force | default(false) | bool) or (_ts_state.BackendState | default('') != 'Running') }}"
+  tags:
+    - tailscale_client
+    - tailscale_up
+    - tailscale_set
 
+# ---------------------------------------------------------------------------
+# `tailscale up` registration. Skipped entirely when no auth key is set, so
+# users who prefer to log in interactively are not blocked.
+# ---------------------------------------------------------------------------
+
+- block:
     - name: Build tailscale up arguments
       ansible.builtin.set_fact:
         _tailscale_up_args: >-
@@ -133,3 +137,46 @@
   tags:
     - tailscale_client
     - tailscale_up
+
+# ---------------------------------------------------------------------------
+# `tailscale set` reconcile. Runs on already-Running nodes to push flag
+# changes that were not present at original `tailscale up` time (e.g. SSH
+# enabled later via role defaults). Does NOT require an auth key, so it is
+# safe to run on every play. Skipped when the node is not Running yet --
+# in that case `tailscale up` above either just applied the same flags or
+# the user has not authenticated and `set` would fail anyway.
+# ---------------------------------------------------------------------------
+
+- block:
+    - name: Build tailscale set arguments
+      ansible.builtin.set_fact:
+        _tailscale_set_args: >-
+          {{
+            ['--accept-dns=' ~ (tailscale_accept_dns | bool | lower)]
+            + ['--accept-routes=' ~ (tailscale_accept_routes | bool | lower)]
+            + ['--ssh=' ~ (tailscale_ssh | bool | lower)]
+            + ['--advertise-exit-node=' ~ (tailscale_advertise_exit_node | bool | lower)]
+            + (['--advertise-routes=' ~ (tailscale_advertise_routes | join(','))]
+               if tailscale_advertise_routes | length > 0 else [])
+            + (['--hostname=' ~ tailscale_hostname] if tailscale_hostname | length > 0 else [])
+          }}
+
+    - name: Reconcile tailscale settings via `tailscale set`
+      ansible.builtin.command:
+        argv: "{{ ['tailscale', 'set'] + _tailscale_set_args }}"
+      register: tailscale_set
+      changed_when: false
+      failed_when: tailscale_set.rc != 0
+
+    - name: Show tailscale set result
+      ansible.builtin.debug:
+        msg:
+          - "rc           : {{ tailscale_set.rc }}"
+          - "args         : {{ _tailscale_set_args }}"
+          - "stdout (last): {{ (tailscale_set.stdout_lines | default([]))[-3:] }}"
+          - "stderr (last): {{ (tailscale_set.stderr_lines | default([]))[-3:] }}"
+
+  when: _ts_state.BackendState | default('') == 'Running'
+  tags:
+    - tailscale_client
+    - tailscale_set
