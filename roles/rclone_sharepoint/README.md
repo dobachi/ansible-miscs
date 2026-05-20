@@ -7,14 +7,16 @@ rclone_sharepoint
 `rclone` の `onedrive` バックエンド (`drive_type=sharepoint`) を使い、
 FUSE で透過マウントする。systemd system unit が boot 時に自動起動する。
 
+**k16 単体で完結する設計**: 別マシンや ansible-vault は不要。k16 上で
+`rclone config` を一度だけ手で走らせれば、以降は systemd が面倒を見る。
+
 Requirements
 ------------
 
 - Ansible 2.9 以上
 - Debian/Ubuntu (apt と systemd を使う)
-- 別マシン (ブラウザがある PC) で先に `rclone config` を一度走らせ
-  rclone.conf を生成しておくこと
-- ansible-vault で rclone.conf を暗号化し host_vars に格納できる環境
+- 対象ホスト (k16 等) にブラウザがあること
+  (OAuth 認証で http://127.0.0.1:53682/auth を開くため)
 
 Role Variables
 --------------
@@ -22,15 +24,14 @@ Role Variables
 | 変数 | 既定値 | 説明 |
 | --- | --- | --- |
 | `rclone_sharepoint_enable` | `false` | このロールの本体を動かすかのスイッチ。host_vars で `true` にする |
-| `rclone_sharepoint_remote_name` | `sharepoint` | rclone.conf 内の `[remote]` 名 |
+| `rclone_sharepoint_remote_name` | `sharepoint` | rclone.conf 内の `[remote]` 名 (`rclone config` の "name" と一致させる) |
 | `rclone_sharepoint_mountpoint` | `/mnt/sharepoint` | マウント先 |
-| `rclone_sharepoint_user` | `dobachi` | FUSE `--uid/--gid` を引く対象ユーザー名 |
+| `rclone_sharepoint_user` | `dobachi` | FUSE `--uid/--gid` と rclone.conf 探索先のユーザー名 |
 | `rclone_sharepoint_umask` | `022` | FUSE `--umask` |
 | `rclone_sharepoint_vfs_cache_mode` | `writes` | `--vfs-cache-mode` |
 | `rclone_sharepoint_dir_cache_time` | `1000h` | `--dir-cache-time` |
 | `rclone_sharepoint_log_level` | `INFO` | rclone のログレベル |
-| `rclone_sharepoint_config_path` | `/root/.config/rclone/rclone.conf` | rclone.conf 配置先 |
-| `rclone_sharepoint_conf_content` | `""` | rclone.conf の中身。host_vars から vault 変数で渡す |
+| `rclone_sharepoint_config_path` | `""` | rclone.conf の場所を明示したい場合に上書き。空なら `~{user}/.config/rclone/rclone.conf` を自動算出 |
 | `rclone_sharepoint_service_name` | `rclone-sharepoint.service` | systemd unit ファイル名 |
 
 `rclone_sharepoint_enable: false` のときは本体ブロックを丸ごと skip する
@@ -42,18 +43,38 @@ Dependencies
 
 なし。rclone と fuse3 はロール内で apt から導入する。
 
-事前準備 (一度だけ手動でやる作業)
--------------------------------
+セットアップ手順 (k16 単体で完結)
+------------------------------
 
-### 1. 別マシンで rclone.conf を作る
+### 1. host_vars/k16/main.yml に有効化フラグを書く
 
-ブラウザが使える PC (k16 でも可) で次を実行する:
+```yaml
+rclone_sharepoint_enable: true
+# 必要に応じて以下を上書き
+# rclone_sharepoint_mountpoint: /mnt/sharepoint
+# rclone_sharepoint_user: dobachi
+```
+
+### 2. ロールを 1 度デプロイ (rclone のインストールと systemd unit 設置)
+
+```bash
+ansible-playbook -i hosts playbooks/conf/linux/rclone_sharepoint.yml \
+  -e server=home_desktops
+```
+
+この時点では rclone.conf がまだ無いため、`ConditionPathExists` で
+systemd は service を skip する (エラーにはならない)。playbook は最後に
+「次に rclone config を走らせてね」というメッセージを出して正常終了する。
+
+### 3. k16 上で `rclone config` を 1 度実行 (OAuth)
+
+dobachi で k16 にログインし、対話で remote を作る:
 
 ```bash
 rclone config
 ```
 
-対話で以下を答える:
+対話の答え方:
 
 | 質問 | 回答 |
 | --- | --- |
@@ -71,60 +92,35 @@ rclone config
 完了すると `~/.config/rclone/rclone.conf` に `[sharepoint]` セクションが
 書き込まれる。
 
-### 2. rclone.conf を ansible-vault に投入
+### 4. systemd サービスを start
 
 ```bash
-cd <ansible-miscs>
-ansible-vault encrypt_string "$(cat ~/.config/rclone/rclone.conf)" \
-  --name 'vault_rclone_sharepoint_conf' \
-  >> host_vars/k16/vault.yml
-```
-
-### 3. host_vars/k16/main.yml にスイッチを書く
-
-```yaml
-rclone_sharepoint_enable: true
-rclone_sharepoint_conf_content: "{{ vault_rclone_sharepoint_conf }}"
-# 必要に応じて以下も上書き
-# rclone_sharepoint_mountpoint: /mnt/sharepoint
-# rclone_sharepoint_user: dobachi
-```
-
-### 4. デプロイ
-
-```bash
-ansible-playbook -i hosts playbooks/conf/linux/rclone_sharepoint.yml \
-  -e server=home_desktops --ask-vault-pass
-```
-
-もしくは `ubu26_desktop.yml` 経由で一括適用してもよい。
-NOPASSWD sudo 環境なら `-K` は不要。vault を読むので
-`--ask-vault-pass` (もしくは `.vault-pass.txt`) が必要。
-
-### 5. 動作確認
-
-```bash
-systemctl status rclone-sharepoint.service
+sudo systemctl start rclone-sharepoint.service
 mount | grep /mnt/sharepoint
-ls -la /mnt/sharepoint
-touch /mnt/sharepoint/_ansible_smoketest && rm /mnt/sharepoint/_ansible_smoketest
+ls /mnt/sharepoint
 ```
 
-トークンの取り扱いについて (重要)
-------------------------------
+サービスはステップ 2 で既に enable 済みなので、以降の boot では自動マウント
+される (rclone.conf がそのまま残っている限り)。
+
+### 5. (任意) playbook を再実行しても安全
+
+ステップ 2 以降の再実行はべき等。テンプレートに差分があれば daemon-reload
++ restart まで自動で走る。
+
+トークンの取り扱いについて
+--------------------------
 
 rclone は SharePoint へアクセスするたびに access_token を refresh_token で
-更新し、その新しいトークンを rclone.conf に書き戻す。
-このロールは `copy: content=...` で rclone.conf を毎回上書きするため、
-**Ansible デプロイの直後は rclone が運用中に更新した refresh_token が
-失われ、vault に入っているトークンに巻き戻る** ことになる。
+更新し、新しいトークンを rclone.conf に書き戻す。
+このロールは rclone.conf を **生成も配布もしない** ため、k16 上で rclone が
+普通に運用していればトークンは自動でリフレッシュされ続ける。
 
 - Microsoft の refresh_token は無操作で約 90 日有効。日常的にマウントが
   動いていれば失効しない。
-- 念のため、定期的に (例: 数か月に一度) 別マシンで `rclone config reconnect`
-  でトークンを再生成 → vault に再投入する運用を推奨する。
-- refresh_token が失効した場合はマウントが認証エラーになる。
-  再度 `rclone config` でリフレッシュして vault を入れ替える。
+- 長期間止まっていて失効した場合は、k16 上で `rclone config reconnect
+  sharepoint:` (または `rclone config` から該当 remote を edit) して
+  再認証する。Ansible 側は触らなくてよい。
 
 Example Playbook
 ----------------

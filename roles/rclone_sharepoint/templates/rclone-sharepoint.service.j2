@@ -3,12 +3,13 @@ Description=rclone mount {{ rclone_sharepoint_remote_name }} -> {{ rclone_sharep
 After=network-online.target
 Wants=network-online.target
 AssertPathIsDirectory={{ rclone_sharepoint_mountpoint }}
+ConditionPathExists={{ _rclone_sharepoint_config_path }}
 
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p {{ rclone_sharepoint_mountpoint }}
 ExecStart=/usr/bin/rclone mount {{ rclone_sharepoint_remote_name }}: {{ rclone_sharepoint_mountpoint }} \
-  --config {{ rclone_sharepoint_config_path }} \
+  --config {{ _rclone_sharepoint_config_path }} \
   --allow-other \
   --uid {{ _rclone_sharepoint_uid }} \
   --gid {{ _rclone_sharepoint_gid }} \

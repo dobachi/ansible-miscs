@@ -3,6 +3,13 @@
 #
 # rclone を使って SharePoint Online のドキュメントライブラリを
 # /mnt/sharepoint (既定) に systemd 経由で常設マウントする。
+#
+# k16 単体で完結する設計。
+#   - ロール: rclone / fuse3 導入、/etc/fuse.conf 調整、systemd unit 設置・enable
+#   - 人間: k16 にログインして `rclone config` で [sharepoint] remote を一度作る
+#   - 以降の起動: systemd が自動マウント (boot 時 + サービス再起動)
+# rclone.conf は k16 上の対象ユーザーのホーム (~/.config/rclone/rclone.conf)
+# にあるものをそのまま systemd unit が参照する。vault や別マシンは不要。
 
 # このロール本体を実行するかのスイッチ。
 # 既定 false にしてあるので、ubu26_desktop.yml の roles 一覧に組み込んでも
@@ -10,13 +17,14 @@
 rclone_sharepoint_enable: false
 
 # rclone.conf 内の remote 名。systemd unit の `rclone mount <name>:` で使う。
+# `rclone config` 実行時にこの名前を指定する。
 rclone_sharepoint_remote_name: "sharepoint"
 
 # マウント先 (ディレクトリは無ければ作成する)。
 rclone_sharepoint_mountpoint: "/mnt/sharepoint"
 
 # FUSE マウントを通して読み書きする対象のユーザー名。
-# getent で uid/gid を解決し、--uid / --gid に渡す。
+# getent で uid/gid/home を解決し、--uid / --gid と rclone.conf の参照先に使う。
 rclone_sharepoint_user: "dobachi"
 
 # FUSE umask。デフォルトは 022 (所有者書込可、他は読取専用)。
@@ -32,12 +40,10 @@ rclone_sharepoint_dir_cache_time: "1000h"
 # rclone のログレベル (DEBUG | INFO | NOTICE | ERROR)。
 rclone_sharepoint_log_level: "INFO"
 
-# rclone.conf の配置先 (systemd unit は root で実行されるので /root 配下)。
-rclone_sharepoint_config_path: "/root/.config/rclone/rclone.conf"
-
-# rclone.conf の中身。host_vars 側で vault 変数を渡す前提。
-# 例: rclone_sharepoint_conf_content: "{{ vault_rclone_sharepoint_conf }}"
-rclone_sharepoint_conf_content: ""
+# rclone.conf の場所を明示したい場合に上書きする。
+# 空文字なら `getent` で引いた {{ rclone_sharepoint_user }} のホームから
+# `<home>/.config/rclone/rclone.conf` を自動算出する。
+rclone_sharepoint_config_path: ""
 
 # systemd unit ファイル名 (拡張子込み)。
 rclone_sharepoint_service_name: "rclone-sharepoint.service"

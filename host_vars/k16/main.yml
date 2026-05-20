@@ -4,3 +4,9 @@ gnome_screen_share_rdp_password: "{{ vault_gnome_rdp_password }}"
 # k16 はディスプレイ未接続でも RDP (Remote Login) でログインできるように
 # kernel cmdline で HDMI-A-1 の仮想 EDID を強制。反映には reboot が必要。
 gnome_screen_share_force_virtual_display: true
+
+# rclone_sharepoint ロール: 一旦無効化 (systemd 側も disable --now で停止済み)。
+# 再開するときはここを true に戻し、playbook を再実行する。
+rclone_sharepoint_enable: false
+rclone_sharepoint_remote_name: "dobachi-private"
+

@@ -3,6 +3,9 @@
 #
 # rclone mount で SharePoint を systemd 経由で常設マウントする。
 # rclone_sharepoint_enable: true かつ Debian 系のときだけ動く。
+#
+# rclone.conf は k16 上の `rclone config` で生成したものをそのまま参照する
+# (このロールは rclone.conf を生成も配布もしない)。
 
 - block:
 
@@ -23,15 +26,23 @@
         state: present
         create: no
 
-    - name: Look up uid/gid of mount-access user
+    - name: Look up uid/gid/home of mount-access user
       ansible.builtin.getent:
         database: passwd
         key: "{{ rclone_sharepoint_user }}"
 
-    - name: Set uid/gid facts for systemd unit
+    - name: Set facts (uid / gid / home / resolved rclone.conf path)
       ansible.builtin.set_fact:
         _rclone_sharepoint_uid: "{{ getent_passwd[rclone_sharepoint_user][1] }}"
         _rclone_sharepoint_gid: "{{ getent_passwd[rclone_sharepoint_user][2] }}"
+        _rclone_sharepoint_home: "{{ getent_passwd[rclone_sharepoint_user][4] }}"
+
+    - name: Resolve rclone.conf path
+      ansible.builtin.set_fact:
+        _rclone_sharepoint_config_path: >-
+          {{ rclone_sharepoint_config_path
+             if (rclone_sharepoint_config_path | default('') | trim) != ''
+             else (_rclone_sharepoint_home ~ '/.config/rclone/rclone.conf') }}
 
     - name: Ensure mount point directory exists
       ansible.builtin.file:
@@ -41,33 +52,15 @@
         group: root
         mode: "0755"
 
-    - name: Ensure rclone config directory exists
-      ansible.builtin.file:
-        path: "{{ rclone_sharepoint_config_path | dirname }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-    - name: Fail when rclone.conf content is empty
-      ansible.builtin.fail:
-        msg: >-
-          rclone_sharepoint_conf_content is empty. Put your rclone.conf
-          (with the [{{ rclone_sharepoint_remote_name }}] remote) into
-          host_vars/<host>/vault.yml as vault_rclone_sharepoint_conf and
-          reference it from host_vars/<host>/main.yml. See
-          roles/rclone_sharepoint/README.md.
-      when: (rclone_sharepoint_conf_content | default('') | trim) == ""
-
-    - name: Deploy rclone.conf
-      ansible.builtin.copy:
-        content: "{{ rclone_sharepoint_conf_content }}"
-        dest: "{{ rclone_sharepoint_config_path }}"
-        owner: root
-        group: root
-        mode: "0600"
-      no_log: true
-      notify: restart rclone-sharepoint
+    - name: Check whether rclone.conf with [{{ rclone_sharepoint_remote_name }}] is ready
+      ansible.builtin.shell: |
+        set -e
+        test -r "{{ _rclone_sharepoint_config_path }}" \
+          && grep -q '^\[{{ rclone_sharepoint_remote_name }}\]' \
+                "{{ _rclone_sharepoint_config_path }}"
+      register: _rclone_sharepoint_conf_check
+      changed_when: false
+      failed_when: false
 
     - name: Deploy systemd unit for rclone mount
       ansible.builtin.template:
@@ -76,16 +69,42 @@
         owner: root
         group: root
         mode: "0644"
-      notify:
-        - daemon-reload
-        - restart rclone-sharepoint
+      register: _rclone_sharepoint_unit
 
-    - name: Enable and start rclone-sharepoint.service
+    - name: Reload systemd if the unit changed
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      when: _rclone_sharepoint_unit is changed
+
+    - name: Enable rclone-sharepoint.service
       ansible.builtin.systemd:
         name: "{{ rclone_sharepoint_service_name }}"
         enabled: yes
-        state: started
-        daemon_reload: yes
+
+    - name: Start or restart rclone-sharepoint.service (rclone.conf ready)
+      ansible.builtin.systemd:
+        name: "{{ rclone_sharepoint_service_name }}"
+        state: "{{ 'restarted' if _rclone_sharepoint_unit is changed else 'started' }}"
+      when: _rclone_sharepoint_conf_check.rc == 0
+
+    - name: First-time setup instructions (rclone.conf not yet configured)
+      ansible.builtin.debug:
+        msg: |
+          rclone.conf に [{{ rclone_sharepoint_remote_name }}] remote が
+          見つかりませんでした (探した場所: {{ _rclone_sharepoint_config_path }})。
+          このホストで初回セットアップを完了するには:
+
+            1. {{ rclone_sharepoint_user }} としてログイン
+            2. `rclone config` を実行し、対話で次のように作成:
+                 name        : {{ rclone_sharepoint_remote_name }}
+                 storage     : onedrive
+                 drive_type  : sharepoint
+                 SharePoint  : 組織の https://<tenant>.sharepoint.com/sites/<name>
+            3. `sudo systemctl start {{ rclone_sharepoint_service_name }}`
+
+          サービスは既に enable 済みなので、rclone.conf を作った後は
+          次回 boot からは自動マウントされます。
+      when: _rclone_sharepoint_conf_check.rc != 0
 
   tags:
     - rclone_sharepoint
