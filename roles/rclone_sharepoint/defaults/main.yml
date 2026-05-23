@@ -5,16 +5,37 @@
 # /mnt/sharepoint (既定) に systemd 経由で常設マウントする。
 #
 # k16 単体で完結する設計。
-#   - ロール: rclone / fuse3 導入、/etc/fuse.conf 調整、systemd unit 設置・enable
-#   - 人間: k16 にログインして `rclone config` で [sharepoint] remote を一度作る
+#   - ロール: rclone (upstream .deb) / fuse3 導入、/etc/fuse.conf 調整、
+#            systemd unit 設置・enable
+#   - 人間: k16 にログインして `rclone config` で remote を一度作る
 #   - 以降の起動: systemd が自動マウント (boot 時 + サービス再起動)
 # rclone.conf は k16 上の対象ユーザーのホーム (~/.config/rclone/rclone.conf)
 # にあるものをそのまま systemd unit が参照する。vault や別マシンは不要。
+# systemd unit は User={{ rclone_sharepoint_user }} で実行するので、
+# トークンリフレッシュ時の所有権書き換え問題も発生しない。
 
 # このロール本体を実行するかのスイッチ。
 # 既定 false にしてあるので、ubu26_desktop.yml の roles 一覧に組み込んでも
 # host_vars で明示的に true にしないと何もしない。
 rclone_sharepoint_enable: false
+
+# 導入する rclone のバージョン (GitHub Releases のタグから 'v' を除いたもの)。
+# Ubuntu apt 同梱版は古く SharePoint 関連の挙動に既知の問題があるため、
+# 必ず upstream の .deb を使う。
+rclone_version: "1.74.1"
+
+# .deb のダウンロード元 URL (組み立て: {{ url }}/v{{ version }}/rclone-...deb)。
+rclone_release_base_url: "https://github.com/rclone/rclone/releases/download"
+
+# rclone が配布する linux 用 .deb のアーキ表記。
+#   x86_64  -> amd64
+#   aarch64 -> arm64
+rclone_deb_arch: >-
+  {{ 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64']
+     else 'amd64' }}
+
+# .deb の一時保存先。
+rclone_deb_download_dir: "/tmp"
 
 # rclone.conf 内の remote 名。systemd unit の `rclone mount <name>:` で使う。
 # `rclone config` 実行時にこの名前を指定する。
@@ -23,8 +44,9 @@ rclone_sharepoint_remote_name: "sharepoint"
 # マウント先 (ディレクトリは無ければ作成する)。
 rclone_sharepoint_mountpoint: "/mnt/sharepoint"
 
-# FUSE マウントを通して読み書きする対象のユーザー名。
-# getent で uid/gid/home を解決し、--uid / --gid と rclone.conf の参照先に使う。
+# rclone プロセスを走らせるユーザー (systemd unit の User=)。
+# このユーザーのホーム配下の ~/.config/rclone/rclone.conf を参照する。
+# マウント先ディレクトリの所有権もこのユーザーに合わせる。
 rclone_sharepoint_user: "dobachi"
 
 # FUSE umask。デフォルトは 022 (所有者書込可、他は読取専用)。

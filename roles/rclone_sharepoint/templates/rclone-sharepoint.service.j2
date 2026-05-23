@@ -7,12 +7,15 @@ ConditionPathExists={{ _rclone_sharepoint_config_path }}
 
 [Service]
 Type=notify
-ExecStartPre=/bin/mkdir -p {{ rclone_sharepoint_mountpoint }}
+User={{ rclone_sharepoint_user }}
+Group={{ rclone_sharepoint_user }}
+# 起動時にマウント先を必ず用意して所有者を合わせる。
+# "+" prefix を付けることで User=/Group= を無視して root で実行される。
+ExecStartPre=+/bin/mkdir -p {{ rclone_sharepoint_mountpoint }}
+ExecStartPre=+/bin/chown {{ rclone_sharepoint_user }}:{{ rclone_sharepoint_user }} {{ rclone_sharepoint_mountpoint }}
 ExecStart=/usr/bin/rclone mount {{ rclone_sharepoint_remote_name }}: {{ rclone_sharepoint_mountpoint }} \
   --config {{ _rclone_sharepoint_config_path }} \
   --allow-other \
-  --uid {{ _rclone_sharepoint_uid }} \
-  --gid {{ _rclone_sharepoint_gid }} \
   --umask {{ rclone_sharepoint_umask }} \
   --dir-cache-time {{ rclone_sharepoint_dir_cache_time }} \
   --vfs-cache-mode {{ rclone_sharepoint_vfs_cache_mode }} \
