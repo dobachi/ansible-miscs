@@ -43,9 +43,12 @@
         export DefaultIMModule=fcitx
         fcitx-autostart &> /dev/null 
 
-  - name: add .profile about GTK Scale
+  # GDK_SCALE/GDK_DPI_SCALE はWayland+GNOMEのスケーリングと二重がけになるため廃止。
+  # 既存マシンの .profile からブロックを除去するため state: absent を残す。
+  - name: remove legacy GTK Scale block from .profile
     blockinfile:
       path: "{{ansible_home}}/.profile"
+      state: absent
       block: |
         export GDK_SCALE=2
         export GDK_DPI_SCALE=0.75

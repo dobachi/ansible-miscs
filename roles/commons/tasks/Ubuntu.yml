@@ -30,16 +30,19 @@
       state: present
       line: "export PATH=$PATH:~/.local/bin"
 
-  - name: add GDK_SCALE
+  # GDK_SCALE/GDK_DPI_SCALE はWayland+GNOMEのフラクショナルスケーリングと
+  # 二重がけになりUIが巨大化するため廃止。スケーリングはGNOMEのディスプレイ設定に一本化する。
+  # 既存マシンの .bashrc からも除去するため state: absent を残しておく。
+  - name: remove legacy GDK_SCALE
     lineinfile:
       path: "{{ansible_home}}/.bashrc"
-      state: present
+      state: absent
       line: "export GDK_SCALE=2"
-    
-  - name: add GDK_DPI_SCALE
+
+  - name: remove legacy GDK_DPI_SCALE
     lineinfile:
       path: "{{ansible_home}}/.bashrc"
-      state: present
+      state: absent
       line: "export GDK_DPI_SCALE=0.75"
 
   tags:
