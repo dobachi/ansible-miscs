@@ -23,10 +23,15 @@ comfyui_python: "{{ ai_python | default('/usr/bin/python3.12') }}"
 # Other available indexes: rocm6.2, rocm6.3, rocm6.4, rocm7.0, rocm7.2, cpu.
 comfyui_torch_index: "https://download.pytorch.org/whl/rocm6.4"
 
-# torch + torchvision packages (kept loose so pip resolves the index's pinned versions).
+# torch + torchvision + torchaudio packages (kept loose so pip resolves the index's pinned versions).
+# torchaudio must be installed from the ROCm index here; otherwise the later
+# requirements.txt step pulls a CUDA-built torchaudio from PyPI, which fails
+# at import with `libcudart.so.13: cannot open shared object file` and traps
+# the systemd service in a restart loop.
 comfyui_torch_packages:
   - torch
   - torchvision
+  - torchaudio
 
 # Listen address. 127.0.0.1 = localhost only. 0.0.0.0 = LAN-accessible.
 comfyui_listen: "127.0.0.1"
