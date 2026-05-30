@@ -1,0 +1,29 @@
+---
+# defaults file for roles/gnome_kimpanel
+
+# UUID of the "Input Method Panel" (kimpanel) GNOME Shell extension.
+# https://extensions.gnome.org/extension/261/kimpanel/
+gnome_kimpanel_uuid: "kimpanel@kde.org"
+
+# Base URL of extensions.gnome.org. The role queries its extension-info API
+# to pick a build that matches the *running* GNOME Shell version, so the role
+# keeps working across GNOME upgrades without pinning a download tag by hand.
+gnome_kimpanel_ego_base: "https://extensions.gnome.org"
+
+# Add the extension to the user's org.gnome.shell enabled-extensions list.
+# On Wayland the live GNOME Shell will not pick up a freshly installed
+# extension until the next login, so `gnome-extensions enable` errors out;
+# the role appends to the gsettings list directly instead, which takes
+# effect on the next login.
+gnome_kimpanel_enable: true
+
+# Reinstall (upgrade) the on-disk extension when the EGO build version differs
+# from what is already installed. Set false to install once and never touch it.
+gnome_kimpanel_upgrade: true
+
+# Expected to be provided by the wrapping playbook (same pattern as the
+# fcitx5_mozc role). When unset, the per-user steps are skipped.
+#   gnome_kimpanel_user:      desktop username (e.g. the SUDO_USER)
+#   gnome_kimpanel_user_home: that user's home directory
+# gnome_kimpanel_user: ""
+# gnome_kimpanel_user_home: ""

@@ -4,6 +4,8 @@
 # Bundles GUI + CUI keyboard customizations:
 #   - Caps Lock <-> Ctrl swap (GNOME/Wayland + console)
 #   - fcitx5 + mozc with Ctrl+Space as the IME trigger key
+#   - kimpanel GNOME Shell extension so the fcitx5 candidate window / status
+#     renders natively under Wayland (詳細は roles/gnome_kimpanel/README.md)
 #   - Ctrl+Tab / Ctrl+Shift+Tab for next / previous tab on
 #     gnome-terminal and Ptyxis
 #   - CopyQ clipboard manager + Super+V (Win+V 相当) shortcut
@@ -52,6 +54,9 @@
          | default('/home/' ~ (ansible_facts.env.SUDO_USER
                                | default(lookup('env','USER'), true)),
                    true) }}
+    # kimpanel (GNOME 側の IME パネル) も同じデスクトップユーザへ適用する。
+    gnome_kimpanel_user: "{{ fcitx5_mozc_user }}"
+    gnome_kimpanel_user_home: "{{ fcitx5_mozc_user_home }}"
   roles:
     # ---- baseline (mirrors basic.yml) ----
     - register_home
@@ -72,6 +77,8 @@
     # ---- Ubuntu 26 desktop add-ons ----
     - keyboard_swapcaps_gnome
     - fcitx5_mozc
+    # kimpanel: fcitx5 の変換候補/状態を GNOME Shell パネルに描画 (Wayland 必須級)
+    - gnome_kimpanel
     - gnome_terminal_tab_switch
     - copyq
     - gnome_screenshot_shortcut

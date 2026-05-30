@@ -1,0 +1,149 @@
+---
+# tasks file for roles/gnome_kimpanel
+#
+# Installs the "Input Method Panel" (kimpanel) GNOME Shell extension for a
+# desktop user and enables it. kimpanel renders the fcitx5 / IBus candidate
+# window and status as a native GNOME Shell panel, which is the missing piece
+# on Wayland where fcitx5 cannot draw its own classic UI reliably.
+#
+# fcitx5 speaks the KDE kimpanel D-Bus protocol out of the box (built into the
+# fcitx5 `dbus` addon), so no extra fcitx5 package is required -- this role
+# only handles the GNOME-side extension. Pair it with the fcitx5_mozc role.
+#
+# The build is fetched from extensions.gnome.org for the *running* GNOME Shell
+# version, so it survives GNOME upgrades without a hand-pinned download tag.
+
+- block:
+    - name: Require a target desktop user
+      assert:
+        that:
+          - gnome_kimpanel_user is defined
+          - gnome_kimpanel_user | length > 0
+          - gnome_kimpanel_user_home is defined
+          - gnome_kimpanel_user_home | length > 0
+        fail_msg: >-
+          gnome_kimpanel_user and gnome_kimpanel_user_home must be set by the
+          wrapping playbook (see ubu26_desktop.yml for the auto-detect pattern).
+
+    - name: Detect the running GNOME Shell major version
+      command: gnome-shell --version
+      register: gnome_kimpanel_shell_ver
+      changed_when: false
+
+    - name: Resolve GNOME Shell major version number
+      set_fact:
+        gnome_kimpanel_shell_major: >-
+          {{ gnome_kimpanel_shell_ver.stdout
+             | regex_replace('^GNOME Shell ([0-9]+).*$', '\1') }}
+
+    - name: Query extensions.gnome.org for a compatible kimpanel build
+      uri:
+        url: >-
+          {{ gnome_kimpanel_ego_base }}/extension-info/?uuid={{ gnome_kimpanel_uuid }}&shell_version={{ gnome_kimpanel_shell_major }}
+        return_content: yes
+      register: gnome_kimpanel_ego
+      check_mode: no
+
+    - name: Fail when no build matches this GNOME Shell version
+      assert:
+        that:
+          - gnome_kimpanel_ego.json.download_url is defined
+          - gnome_kimpanel_ego.json.download_url
+        fail_msg: >-
+          extensions.gnome.org has no kimpanel build for GNOME Shell
+          {{ gnome_kimpanel_shell_major }}. Check the extension page:
+          {{ gnome_kimpanel_ego_base }}/extension/261/kimpanel/
+
+    # ---- read what (if anything) is already installed, for idempotency ----
+    - name: Check for an already-installed kimpanel extension
+      stat:
+        path: "{{ gnome_kimpanel_user_home }}/.local/share/gnome-shell/extensions/{{ gnome_kimpanel_uuid }}/metadata.json"
+      register: gnome_kimpanel_installed_meta
+
+    - name: Read the installed extension version
+      slurp:
+        src: "{{ gnome_kimpanel_user_home }}/.local/share/gnome-shell/extensions/{{ gnome_kimpanel_uuid }}/metadata.json"
+      register: gnome_kimpanel_installed_raw
+      when: gnome_kimpanel_installed_meta.stat.exists
+
+    - name: Decide whether an install / upgrade is needed
+      set_fact:
+        gnome_kimpanel_need_install: >-
+          {{ (not gnome_kimpanel_installed_meta.stat.exists)
+             or (gnome_kimpanel_upgrade | bool
+                 and ((gnome_kimpanel_installed_raw.content | b64decode | from_json).version | default(0))
+                     != gnome_kimpanel_ego.json.version) }}
+
+    # ---- download + install into the user's extensions dir ----
+    - name: Ensure the user's cache directory exists
+      file:
+        path: "{{ gnome_kimpanel_user_home }}/.cache"
+        state: directory
+        owner: "{{ gnome_kimpanel_user }}"
+        group: "{{ gnome_kimpanel_user }}"
+        mode: "0755"
+      when: gnome_kimpanel_need_install | bool
+
+    - name: Download the kimpanel extension package
+      become: yes
+      become_user: "{{ gnome_kimpanel_user }}"
+      get_url:
+        url: "{{ gnome_kimpanel_ego_base }}{{ gnome_kimpanel_ego.json.download_url }}"
+        dest: "{{ gnome_kimpanel_user_home }}/.cache/gnome-shell-extension-kimpanel.zip"
+        mode: "0644"
+        force: yes
+      when: gnome_kimpanel_need_install | bool
+
+    - name: Install the extension into the user's GNOME extensions directory
+      become: yes
+      become_user: "{{ gnome_kimpanel_user }}"
+      command: >-
+        gnome-extensions install --force
+        {{ gnome_kimpanel_user_home }}/.cache/gnome-shell-extension-kimpanel.zip
+      when: gnome_kimpanel_need_install | bool
+
+    # ---- enable for the user (takes effect on next login under Wayland) ----
+    - name: Get the user's numeric uid (for the session D-Bus path)
+      command: id -u {{ gnome_kimpanel_user }}
+      register: gnome_kimpanel_uid
+      changed_when: false
+      when: gnome_kimpanel_enable | bool
+
+    - name: Enable kimpanel in the user's GNOME Shell (idempotent)
+      become: yes
+      become_user: "{{ gnome_kimpanel_user }}"
+      shell: |
+        set -eu
+        cur=$(gsettings get org.gnome.shell enabled-extensions)
+        if printf '%s' "$cur" | grep -q "'{{ gnome_kimpanel_uuid }}'"; then
+          echo NOOP
+        else
+          # The live shell has not rescanned a freshly installed extension on
+          # Wayland, so `gnome-extensions enable` fails; fall back to appending
+          # the UUID to the gsettings list, which applies on the next login.
+          if ! gnome-extensions enable "{{ gnome_kimpanel_uuid }}" 2>/dev/null; then
+            if printf '%s' "$cur" | grep -Eq '^(@as \[\]|\[\])$'; then
+              gsettings set org.gnome.shell enabled-extensions "['{{ gnome_kimpanel_uuid }}']"
+            else
+              gsettings set org.gnome.shell enabled-extensions \
+                "$(printf '%s' "$cur" | sed "s/]$/, '{{ gnome_kimpanel_uuid }}']/")"
+            fi
+          fi
+          echo CHANGED
+        fi
+      environment:
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_kimpanel_uid.stdout }}/bus"
+      register: gnome_kimpanel_enable_run
+      changed_when: "'CHANGED' in gnome_kimpanel_enable_run.stdout"
+      when: gnome_kimpanel_enable | bool
+
+    - name: Remind that a re-login is needed under Wayland
+      debug:
+        msg: >-
+          kimpanel installed{{ ' and enabled' if gnome_kimpanel_enable | bool else '' }}.
+          Log out and back in (Wayland) for the panel to appear. Then switch
+          input with fcitx5 (Ctrl+Space) and the candidate window will render
+          via GNOME Shell.
+
+  tags:
+    - gnome_kimpanel

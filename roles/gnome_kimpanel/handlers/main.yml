@@ -1,0 +1,4 @@
+---
+# handlers file for roles/gnome_kimpanel
+# (no handlers: enabling is a per-user gsettings change that needs a re-login,
+#  not a service reload)
