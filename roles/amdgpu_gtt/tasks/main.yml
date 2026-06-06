@@ -17,6 +17,12 @@
         backup: true
       notify: regenerate grub
 
+    # Flush 即座に: 後続ロール (llama_server_deb の GGUF DL など) が失敗・中断
+    # しても update-grub だけは確実に走らせ、grub.cfg と /etc/default/grub の
+    # 乖離 (= 再起動しても cmdline に反映されない事故) を防ぐ。
+    - name: Flush handlers so update-grub runs before later roles
+      ansible.builtin.meta: flush_handlers
+
     - name: Reboot reminder
       ansible.builtin.debug:
         msg: >-
