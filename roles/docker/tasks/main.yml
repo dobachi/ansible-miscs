@@ -1,1 +1,78 @@
-- include_tasks: "{{ansible_facts['distribution']}}.yml"
+---
+# tasks file for roles/docker
+#
+# Docker 公式 (docs.docker.com/engine/install/ubuntu/) の Ubuntu 用 apt install
+# 手順を Ansible に落とし込んだもの。codename は docker_codename 変数で制御。
+
+- block:
+
+    - name: Assert running on Ubuntu (本ロールは Ubuntu 専用 / 他OSは docker_legacy を使う)
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == "Ubuntu"
+        fail_msg: >-
+          roles/docker は Ubuntu 専用です (現: {{ ansible_facts['distribution'] }})。
+          Debian/CentOS/Rocky では roles/docker_legacy を使ってください。
+
+    - name: Install prerequisites for apt-over-HTTPS and keyring handling
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+
+    - name: Ensure /etc/apt/keyrings exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Install Docker apt repository signing key
+      ansible.builtin.get_url:
+        url: "{{ docker_keyring_url }}"
+        dest: "{{ docker_keyring_path }}"
+        mode: "0644"
+        force: false
+
+    - name: Add Docker apt repository (signed-by, codename={{ docker_codename }})
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ ansible_facts['architecture'] | regex_replace('^x86_64$', 'amd64')
+                                                    | regex_replace('^aarch64$', 'arm64') }}
+          signed-by={{ docker_keyring_path }}]
+          https://download.docker.com/linux/ubuntu
+          {{ docker_codename }} stable
+        filename: docker
+        state: present
+        update_cache: true
+
+    - name: Install Docker CE + Compose v2 plugin
+      ansible.builtin.apt:
+        name: "{{ docker_packages }}"
+        state: present
+
+    - name: Enable and start docker.service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+      when: docker_service_enable | bool
+
+    - name: Add users to docker group (sudo 不要で docker CLI を叩けるように)
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: true
+      loop: "{{ docker_users }}"
+      when: docker_users | length > 0
+
+  tags:
+    - docker
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - docker_enable | bool
+
+# vim: set et ts=2 sw=2:

@@ -1,2 +1,38 @@
 ---
 # defaults file for roles/docker
+#
+# Docker CE + Compose v2 plugin を Ubuntu (24.04 / 26.04) 想定で導入する。
+# 旧 roles/docker (現 roles/docker_legacy) との違い:
+#   - apt_key (deprecated) を使わず /etc/apt/keyrings/docker.asc を配置
+#   - codename をハードコードせず変数化
+#   - docker-compose v1 (Python, EOL) ではなく docker-compose-plugin (v2) を入れる
+#   - dobachi のような対話ユーザーを docker グループに入れるオプション
+
+# このロール本体を実行するかのスイッチ。
+docker_enable: false
+
+# Docker apt リポジトリの codename。
+# Ubuntu 26.04 (resolute) は 2026-06 時点で Docker 公式の dists/ に存在しない
+# ため、既定値は LTS の noble (24.04) にフォールバックしてある。
+# Docker 公式が resolute を公開したら "{{ ansible_distribution_release }}" に
+# 切り替えるか、host_vars で上書きすること。
+docker_codename: "noble"
+
+# 入れるパッケージ。Docker 公式推奨セット (compose v2 plugin 含む)。
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+# docker グループに追加するユーザーのリスト。空ならスキップ。
+# 例: docker_users: [dobachi]
+docker_users: []
+
+# systemd で docker.service を enable + start するか。
+docker_service_enable: true
+
+# /etc/apt/keyrings/docker.asc の所在 (公式手順準拠)。
+docker_keyring_path: /etc/apt/keyrings/docker.asc
+docker_keyring_url: https://download.docker.com/linux/ubuntu/gpg

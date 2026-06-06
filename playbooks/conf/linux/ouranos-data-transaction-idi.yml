@@ -5,4 +5,4 @@
     - mockery
     - goreturns
     - gomigrate
-    - docker
+    - docker_legacy
