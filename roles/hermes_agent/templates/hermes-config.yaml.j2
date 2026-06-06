@@ -1,0 +1,24 @@
+# Hermes Agent 設定 — ローカル LLM と Claude の併用
+# Managed by Ansible role hermes_agent. Do not edit by hand.
+#
+# 認証 (APIキー / OAuth) はここには書かない。
+# `hermes setup` を対話実行するか、ANTHROPIC_API_KEY を export すること。
+
+custom_providers:
+  - name: local
+    base_url: {{ hermes_agent_local_base_url }}
+    models:
+      {{ hermes_agent_local_model_name }}:
+        context_length: {{ hermes_agent_local_context_length }}
+
+model:
+  # 主脳は Claude (設計・生成・複雑な tool calling)。
+  # セッション内で /model custom:local に切ると上の local LLM に逃がせる。
+  provider: {{ hermes_agent_default_provider }}
+  default: {{ hermes_agent_default_model }}
+
+# 補助タスク (要約・整形など) をローカル LLM に振りたい場合の例:
+# auxiliary:
+#   web_summary:
+#     provider: custom
+#     model: {{ hermes_agent_local_model_name }}

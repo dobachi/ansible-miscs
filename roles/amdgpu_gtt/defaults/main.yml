@@ -1,0 +1,25 @@
+---
+# defaults file for roles/amdgpu_gtt
+#
+# AMD iGPU が共有メモリ (GTT) から確保できる量を GRUB の
+# kernel cmdline (amdgpu.gttsize=N) で広げる。Radeon 680M で
+# 14B GGUF を Vulkan offload するには既定 (数 GB) では不足し、
+# 明示的に拡張する必要がある。
+#
+# 反映には再起動が必須。このロールは再起動しない。
+# 既存の GRUB_CMDLINE_LINUX_DEFAULT 行を丸ごと置き換えるので、
+# 他のオプションを保持したい場合は amdgpu_gtt_grub_cmdline を
+# host_vars で上書きすること。
+
+# このロール本体を実行するかのスイッチ。
+amdgpu_gtt_enable: false
+
+# GTT メモリサイズ (MiB)。20480 = 20 GiB。
+# 14B Q4_K_M (重み ~9GB + context) を 32GB RAM ホストで動かすときの目安。
+# OS 側に最低 10〜12 GiB は残す前提で算出する。
+amdgpu_gtt_size_mb: 20480
+
+# GRUB_CMDLINE_LINUX_DEFAULT に書き込む文字列。
+# 既定では Ubuntu の出荷値 (quiet splash) を維持しつつ
+# amdgpu.gttsize を追記する形にしてある。
+amdgpu_gtt_grub_cmdline: "quiet splash amdgpu.gttsize={{ amdgpu_gtt_size_mb }}"

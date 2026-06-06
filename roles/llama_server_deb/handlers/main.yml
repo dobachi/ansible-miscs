@@ -1,0 +1,9 @@
+---
+# handlers file for roles/llama_server_deb
+
+- name: restart llama-server
+  ansible.builtin.systemd:
+    name: llama-server
+    state: restarted
+    daemon_reload: true
+  when: llama_server_deb_enable_unit | bool

@@ -1,0 +1,59 @@
+---
+# tasks file for roles/llama_server_deb
+#
+# Ubuntu 26.04 universe の llama.cpp + ggml-vulkan backend を入れて、
+# パッケージ同梱の llama-server.service を Hermes 用に常駐させる。
+#
+# 設定はすべて /etc/default/llama-server (EnvironmentFile=) の
+# LLAMA_ARG_* 環境変数で渡す。パッケージ既定の枠組みに乗っているので
+# unit ファイル自体は触らない。
+
+- block:
+
+    - name: Install llama.cpp tools + ggml Vulkan backend
+      ansible.builtin.apt:
+        name:
+          - llama.cpp
+          - llama.cpp-tools
+          - libggml0-backend-vulkan
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      # llama.cpp メタパッケージは llama.cpp-tools に depends してるが、
+      # 構成を明示するため両方並べる。libggml0-backend-vulkan は
+      # runtime に dlopen で読まれるので apt 入れるだけで Vulkan が効く。
+
+    - name: Validate model source is configured
+      ansible.builtin.assert:
+        that:
+          - (llama_server_deb_hf_repo | length > 0) or (llama_server_deb_model_path | length > 0)
+        fail_msg: >-
+          llama_server_deb_hf_repo か llama_server_deb_model_path の
+          どちらかは設定してください (両方空だと llama-server が
+          起動できません)。
+
+    - name: Configure /etc/default/llama-server
+      ansible.builtin.template:
+        src: llama-server.env.j2
+        dest: /etc/default/llama-server
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      notify: restart llama-server
+
+    - name: Enable and start llama-server.service
+      ansible.builtin.systemd:
+        name: llama-server
+        enabled: true
+        state: started
+        daemon_reload: true
+      when: llama_server_deb_enable_unit | bool
+
+  tags:
+    - llama_server_deb
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - llama_server_deb_enable | bool
+
+# vim: set et ts=2 sw=2:

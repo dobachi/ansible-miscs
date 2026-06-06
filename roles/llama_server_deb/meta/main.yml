@@ -1,0 +1,13 @@
+galaxy_info:
+  author: dobachi
+  description: Run llama-server as a systemd service from Ubuntu 26.04 packages with Vulkan
+  license: BSD-3-Clause
+  min_ansible_version: "2.9"
+  galaxy_tags:
+    - llama
+    - llamacpp
+    - llm
+    - vulkan
+    - systemd
+
+dependencies: []

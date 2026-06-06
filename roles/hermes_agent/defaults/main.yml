@@ -1,0 +1,54 @@
+---
+# defaults file for roles/hermes_agent
+#
+# Hermes Agent (Nous Research) を per-user CLI として導入し、
+# ~/.hermes/config.yaml を配置するロール。
+#
+# 認証情報 (Anthropic API key / OAuth トークン) はここでは扱わない:
+#   - `hermes setup` を対話で走らせる、または
+#   - ANTHROPIC_API_KEY を ~/.bashrc 等に export
+# のどちらかをロール実行後に手で行う。
+
+# このロール本体を実行するかのスイッチ。
+hermes_agent_enable: false
+
+# Hermes を入れる対象ユーザー (~/.hermes 配下に展開される)。
+# 既定では ansible-playbook の実行ユーザー (target host 上の sudo 元)。
+hermes_agent_user: "{{ ansible_user_id }}"
+
+# Hermes 公式 per-user インストーラ URL。
+# 中身は curl | bash 流の installer で、~/.hermes/hermes-agent/ に
+# venv を作ってその中に hermes CLI を入れる。sudo は要求しない
+# (依存パッケージは下の hermes_agent_apt_deps で事前に揃える前提)。
+hermes_agent_installer_url: "https://hermes-agent.nousresearch.com/install.sh"
+
+# Hermes が依存する OS パッケージを apt で導入するか。
+# 既存ホストで揃ってる前提なら false にしてスキップしても良い。
+hermes_agent_install_apt_deps: true
+# Ubuntu 26.04 の `nodejs` パッケージは `npm` を内包して `Conflicts: npm` を
+# 宣言しているため、apt の `npm` を別途要求するとトランザクションが壊れる
+# (nodesource など他経路で nodejs が入っている環境でも同様)。
+# `nodejs` をインストールすれば `npm` バイナリも一緒に入るので、ここでは
+# `npm` を列挙しない。
+hermes_agent_apt_deps:
+  - curl
+  - ca-certificates
+  - ripgrep
+  - ffmpeg
+  - nodejs
+
+# --- Hermes config.yaml 生成パラメータ -----------------------------------
+# ~/.hermes/config.yaml の custom_providers に登録するローカル LLM の
+# OpenAI 互換 base URL。roles/llama_server_deb と組み合わせるなら
+# 既定の http://127.0.0.1:8080/v1 で OK。
+hermes_agent_local_base_url: "http://127.0.0.1:8080/v1"
+
+# 上記ローカル base_url が公開する model id。
+# roles/llama_server_deb の llama_server_deb_model_alias と揃える。
+hermes_agent_local_model_name: "qwen2.5-coder-14b"
+hermes_agent_local_context_length: 65536
+
+# Hermes セッション開始時のデフォルトモデル (主脳)。
+# Anthropic の Claude Sonnet 4.6 を既定にしておく (Claude Max + クレジット運用想定)。
+hermes_agent_default_provider: "anthropic"
+hermes_agent_default_model: "claude-sonnet-4-6"

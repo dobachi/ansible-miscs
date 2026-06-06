@@ -1,0 +1,66 @@
+---
+# =====================================================================
+# Hermes Agent + ローカル LLM (Ubuntu 26.04 / Radeon 680M 想定)
+# =====================================================================
+#
+# 何を構築するか
+# --------------
+# Ubuntu 26.04 (resolute) universe の llama.cpp + ggml-vulkan backend を
+# 入れて llama-server を systemd サービス化し、その上に Hermes Agent CLI を
+# per-user で導入する。Hermes はローカル LLM (Qwen2.5-Coder-14B 等) と
+# Anthropic Claude を併用する設定で出荷する。
+#
+# 構成
+# ----
+#   - register_home          : ansible_home 解決
+#   - amdgpu_gtt             : GRUB に amdgpu.gttsize=N を追記 (要再起動)
+#   - llama_server_deb       : llama.cpp-tools + libggml0-backend-vulkan
+#                              + /etc/default/llama-server 配置 + systemd
+#   - hermes_agent           : per-user インストーラ + ~/.hermes/config.yaml
+#
+# 想定ターゲット
+# --------------
+#   - Ubuntu 26.04 (resolute) ※ 24.04 以前には llama.cpp パッケージが無い
+#   - AMD iGPU (Radeon 680M = gfx1035) もしくは Vulkan 対応 GPU
+#   - 32GB RAM (14B Q4 を 20GB GTT で動かす想定)
+#
+# 実行例
+# ------
+#   # K16 で全部入り (14B + 20GB GTT + Hermes)
+#   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
+#     -e server=localhost \
+#     -e amdgpu_gtt_enable=true \
+#     -e llama_server_deb_enable=true \
+#     -e hermes_agent_enable=true
+#
+#   # 既に GTT 設定済みで Hermes 部分だけ流したい (再起動不要)
+#   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
+#     -e server=localhost \
+#     -e llama_server_deb_enable=true \
+#     -e hermes_agent_enable=true
+#
+# 実行後の手動ステップ
+# --------------------
+#   1. amdgpu_gtt_enable=true で初回適用したなら再起動 (`sudo reboot`)
+#      - 反映確認: `cat /proc/cmdline | grep gttsize`
+#   2. Claude 認証 (どちらか):
+#      - `hermes setup` を対話実行 (Anthropic OAuth or API key)
+#      - `echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc && source ~/.bashrc`
+#   3. 動作確認:
+#      - `systemctl status llama-server`
+#      - `curl http://127.0.0.1:8080/v1/models`
+#      - `hermes doctor`
+#   4. Hermes 内のモデル切替:
+#      - `/model custom:local`                    → ローカル 14B
+#      - `/model anthropic:claude-sonnet-4-6`     → Claude
+# =====================================================================
+
+- hosts: "{{ server | default('localhost') }}"
+  become: true
+  roles:
+    - register_home
+    - amdgpu_gtt
+    - llama_server_deb
+    - hermes_agent
+
+# vim: et ts=2 sw=2:

@@ -1,0 +1,81 @@
+---
+# tasks file for roles/hermes_agent
+#
+# Hermes Agent CLI を hermes_agent_user の home に per-user で入れて、
+# ~/.hermes/config.yaml をテンプレから配置する。
+#
+# 認証 (Claude API key 等) はここでは扱わない (秘密情報のため、
+# ロール実行後に `hermes setup` か ANTHROPIC_API_KEY 環境変数で設定する)。
+#
+# Hermes 推論バックエンドは roles/llama_server_deb で立てた
+# llama-server を既定で参照する (config.yaml の custom_providers)。
+
+- block:
+
+    - name: Install Hermes apt dependencies
+      ansible.builtin.apt:
+        name: "{{ hermes_agent_apt_deps }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: hermes_agent_install_apt_deps | bool
+
+    - name: Look up home of hermes_agent_user
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ hermes_agent_user }}"
+
+    - name: Set fact for hermes_agent_user home
+      ansible.builtin.set_fact:
+        _hermes_agent_home: "{{ getent_passwd[hermes_agent_user][4] }}"
+
+    - name: Run Hermes per-user installer (idempotent via creates)
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -fsSL {{ hermes_agent_installer_url }} | bash
+      args:
+        executable: /bin/bash
+        creates: "{{ _hermes_agent_home }}/.hermes/hermes-agent/venv/bin/hermes"
+      become: true
+      become_user: "{{ hermes_agent_user }}"
+      environment:
+        HOME: "{{ _hermes_agent_home }}"
+      # インストーラは sudo を要求しないが、apt 依存が揃ってないと
+      # 失敗する可能性があるので上の Install Hermes apt dependencies を
+      # 必ず先に通すこと。
+
+    - name: Ensure ~/.hermes directory exists
+      ansible.builtin.file:
+        path: "{{ _hermes_agent_home }}/.hermes"
+        state: directory
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0755"
+
+    - name: Deploy ~/.hermes/config.yaml
+      ansible.builtin.template:
+        src: hermes-config.yaml.j2
+        dest: "{{ _hermes_agent_home }}/.hermes/config.yaml"
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0644"
+        backup: true
+
+    - name: Post-install reminders
+      ansible.builtin.debug:
+        msg:
+          - "=== Hermes Agent 構築完了 ==="
+          - "1. Claude 認証: `hermes setup` を対話実行、または"
+          - "   echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc && source ~/.bashrc"
+          - "2. 動作確認: `hermes doctor`"
+          - "3. セッション内のモデル切替:"
+          - "   /model custom:local                      # ローカル LLM"
+          - "   /model {{ hermes_agent_default_provider }}:{{ hermes_agent_default_model }}  # Claude"
+
+  tags:
+    - hermes_agent
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - hermes_agent_enable | bool
+
+# vim: set et ts=2 sw=2:

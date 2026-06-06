@@ -1,0 +1,56 @@
+---
+# defaults file for roles/llama_server_deb
+#
+# Ubuntu 26.04 (resolute) universe の llama.cpp パッケージで
+# llama-server を system service として常駐させる。
+# Vulkan backend は dlopen で読まれる libggml0-backend-vulkan を
+# 入れるだけで有効化される (build 不要)。
+#
+# 既存の roles/llama (公式 release zip を ~/Llama/ に展開する別系) とは
+# 独立。本ロールは Hermes Agent (roles/hermes_agent) の推論バックエンドを
+# 提供する想定だが、Hermes が無くても OpenAI 互換エンドポイント
+# (既定 127.0.0.1:8080/v1) として単体で使える。
+#
+# 設定はすべて /etc/default/llama-server の LLAMA_ARG_* 環境変数経由で
+# パッケージ同梱の llama-server.service に渡す。
+
+# このロール本体を実行するかのスイッチ。
+llama_server_deb_enable: false
+
+# パッケージ同梱の systemd unit を enable/start するか。
+# 設定だけしてサービスは触らない、という運用に false で切替可能。
+llama_server_deb_enable_unit: true
+
+# 待ち受け
+llama_server_deb_host: "127.0.0.1"
+llama_server_deb_port: 8080
+
+# context size。Hermes Agent は 64K 以上を要求するため既定 65536。
+llama_server_deb_ctx_size: 65536
+
+# 全レイヤーを GPU (Vulkan) に逃がす。CPU フォールバックしたいときは 0。
+llama_server_deb_n_gpu_layers: 99
+
+# Jinja テンプレート tool calling。Hermes Agent のローカル LLM 利用に必須。
+llama_server_deb_jinja: true
+
+# --- モデル指定 ----------------------------------------------------------
+# 以下のどちらかを設定する:
+#   (a) HF からの自動 DL: hf_repo (必須) + 任意で hf_file
+#       LLAMA_CACHE (= /var/cache/llama-server) 配下にキャッシュされる。
+#   (b) ローカル GGUF を直接指定: model_path に絶対パス
+#       _llama-server ユーザーが読める権限であること。
+# (b) が設定されていれば (a) は無視される。両方空だとサービスが
+# 起動できないため assert で弾く。
+
+llama_server_deb_hf_repo: "bartowski/Qwen2.5-Coder-14B-Instruct-GGUF"
+llama_server_deb_hf_file: "Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf"
+llama_server_deb_model_path: ""
+
+# llama-server が応答する OpenAI 互換 model id (alias)。
+# Hermes config (roles/hermes_agent) の local_model_name と揃えること。
+llama_server_deb_model_alias: "qwen2.5-coder-14b"
+
+# /etc/default/llama-server に追記したい任意の環境変数 (key: value 形式)。
+# 例: { LLAMA_API_KEY: "secret123" } で外部公開時の簡易認証を付ける。
+llama_server_deb_extra_env: {}

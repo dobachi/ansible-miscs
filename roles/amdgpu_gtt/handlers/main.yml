@@ -1,0 +1,6 @@
+---
+# handlers file for roles/amdgpu_gtt
+
+- name: regenerate grub
+  ansible.builtin.command:
+    cmd: update-grub

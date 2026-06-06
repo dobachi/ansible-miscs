@@ -1,0 +1,32 @@
+---
+# tasks file for roles/amdgpu_gtt
+#
+# /etc/default/grub の GRUB_CMDLINE_LINUX_DEFAULT を上書きし、
+# update-grub で grub.cfg を再生成する。元ファイルは backup: true で
+# /etc/default/grub.YYYY-MM-DD@HH:MM:SS~ の形で控えを取る。
+#
+# 反映には再起動が必須 (このロールは再起動を実行しない)。
+
+- block:
+
+    - name: Configure amdgpu.gttsize in /etc/default/grub
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+        line: 'GRUB_CMDLINE_LINUX_DEFAULT="{{ amdgpu_gtt_grub_cmdline }}"'
+        backup: true
+      notify: regenerate grub
+
+    - name: Reboot reminder
+      ansible.builtin.debug:
+        msg: >-
+          amdgpu.gttsize={{ amdgpu_gtt_size_mb }} を GRUB に書き込みました。
+          反映には再起動が必要です: `sudo reboot`
+
+  tags:
+    - amdgpu_gtt
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - amdgpu_gtt_enable | bool
+
+# vim: set et ts=2 sw=2:
