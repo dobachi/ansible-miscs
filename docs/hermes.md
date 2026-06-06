@@ -73,6 +73,20 @@ ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
   -e hermes_agent_enable=true
 ```
 
+**k16 (固有設定済み)**: モデル選択や接続方法は
+[`host_vars/k16/main.yml`](../host_vars/k16/main.yml) に永続化済み (Qwen2.5-Coder-7B
++ `ansible_connection: local`)。コマンドはシンプル:
+
+```bash
+ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
+  -e server=k16 \
+  -e llama_server_deb_enable=true \
+  -e hermes_agent_enable=true
+```
+
+テンプレ側を変えた後でホストの config.yaml に反映したい場合は
+`-e hermes_agent_reset_config=true` を追加で渡す。
+
 `amdgpu_gtt_enable=true` を有効にした場合、ロールは `/etc/default/grub` を
 書き換えて `update-grub` まで実行する (handler は `lineinfile` 直後で
 `meta: flush_handlers` するので、後続ロールが失敗しても grub.cfg は更新される)。

@@ -1,3 +1,9 @@
+# k16 上で ansible-playbook を直接実行する想定 (制御ノード = ターゲット)。
+# 別マシンから ssh で k16 を操作したい場合は、コマンド側で
+# `-e ansible_connection=ssh -e ansible_user=dobachi` を渡して上書きする。
+ansible_connection: local
+ansible_python_interpreter: /usr/bin/python3
+
 gnome_screen_share_rdp_username: "dobachi"
 gnome_screen_share_rdp_password: "{{ vault_gnome_rdp_password }}"
 
@@ -7,4 +13,16 @@ gnome_screen_share_force_virtual_display: true
 
 rclone_sharepoint_enable: true
 rclone_sharepoint_remote_name: "dobachi-private"
+
+# --- ローカル AI 環境 (docs/hermes.md) ----------------------------------
+# Hermes Agent + llama-server (Vulkan / AMD iGPU = Radeon 680M)。
+# 既定の Qwen2.5-Coder-14B (Q4_K_M / 9 GB) より速い 7B (Q4_K_M / 4.7 GB) を採用。
+# Hermes Agent の 64K context 要件は llama-server 側で --ctx-size 65536 に
+# RoPE 延長して満たす (defaults の llama_server_deb_ctx_size: 65536)。
+llama_server_deb_hf_repo: "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF"
+llama_server_deb_hf_file: "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf"
+llama_server_deb_model_alias: "qwen2.5-coder-7b"
+
+# Hermes 側の参照モデル名を llama-server の alias と揃える。
+hermes_agent_local_model_name: "qwen2.5-coder-7b"
 
