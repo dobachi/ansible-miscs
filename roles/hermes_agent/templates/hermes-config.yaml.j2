@@ -11,6 +11,10 @@
 #     見て判定する。Qwen2.5-Coder-14B は n_ctx_train=32768 で、Hermes Agent
 #     の最小要件 64K を下回るため、ここで 65536 を明示しておく必要がある
 #     (llama-server 側は --ctx-size 65536 で RoPE 延長して提供している)
+#   - llama-server の /v1/models レスポンスは OpenAI 標準の `data:` に加えて
+#     Ollama 互換の `models:` キーも同梱しているため、Hermes の auto-detect
+#     が Ollama と誤判定する。その場合 `ollama_num_ctx` を見に行くので、
+#     これも明示的に渡しておく (Ollama 判定でも llama-server 判定でも害なし)
 #
 # Claude (Anthropic) を主脳にする場合は `hermes setup` 実行後にこの config を
 # Hermes 自身が拡張する。`force: false` 運用なので CLI 側の修正が勝つ。
@@ -21,3 +25,4 @@ model:
   base_url: {{ hermes_agent_local_base_url }}
   api_key: {{ hermes_agent_local_api_key }}
   context_length: {{ hermes_agent_local_context_length }}
+  ollama_num_ctx: {{ hermes_agent_local_context_length }}
