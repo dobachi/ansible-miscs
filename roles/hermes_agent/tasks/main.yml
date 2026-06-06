@@ -52,25 +52,31 @@
         group: "{{ hermes_agent_user }}"
         mode: "0755"
 
-    - name: Deploy ~/.hermes/config.yaml
+    # force: false にしている理由:
+    #   - Hermes 0.16.0 (v27) は初回起動時に config.yaml を全 default で展開
+    #     して 12 KB ほどに肥大化する。ユーザーが `hermes setup` / `hermes
+    #     model` で加えた修正もここに焼き付く。ロール再実行で最小テンプレに
+    #     戻すと、それらが全部消えるため。
+    #   - 初回 bootstrap だけ最小設定 (model: ブロック) を置き、以後は
+    #     Hermes 自身に管理させる。設定を撒き直したい場合は対象ファイルを
+    #     手で削除 (or backup を残して `state: absent`) してから再実行する。
+    - name: Bootstrap ~/.hermes/config.yaml (initial only, force false)
       ansible.builtin.template:
         src: hermes-config.yaml.j2
         dest: "{{ _hermes_agent_home }}/.hermes/config.yaml"
         owner: "{{ hermes_agent_user }}"
         group: "{{ hermes_agent_user }}"
-        mode: "0644"
+        mode: "0600"
+        force: false
         backup: true
 
     - name: Post-install reminders
       ansible.builtin.debug:
         msg:
           - "=== Hermes Agent 構築完了 ==="
-          - "1. Claude 認証: `hermes setup` を対話実行、または"
-          - "   echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc && source ~/.bashrc"
-          - "2. 動作確認: `hermes doctor`"
-          - "3. セッション内のモデル切替:"
-          - "   /model custom:local                      # ローカル LLM"
-          - "   /model {{ hermes_agent_default_provider }}:{{ hermes_agent_default_model }}  # Claude"
+          - "1. 動作確認: `hermes doctor` (→ docs/hermes.md)"
+          - "2. (任意) Claude 認証: `hermes setup` または ANTHROPIC_API_KEY を export"
+          - "3. セッション内モデル切替: hermes 起動後に `/model {{ hermes_agent_local_model_name }}`"
 
   tags:
     - hermes_agent

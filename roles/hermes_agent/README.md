@@ -31,11 +31,17 @@ Role Variables
 | `hermes_agent_installer_url` | `https://hermes-agent.nousresearch.com/install.sh` | 公式 per-user installer URL |
 | `hermes_agent_install_apt_deps` | `true` | 依存 apt パッケージを入れるか |
 | `hermes_agent_apt_deps` | `[curl, ca-certificates, ripgrep, ffmpeg, nodejs]` | apt で揃える依存。Ubuntu 26.04 の `nodejs` は `npm` を内包するので `npm` は列挙しない |
-| `hermes_agent_local_base_url` | `http://127.0.0.1:8080/v1` | config.yaml の custom_providers で使うローカル LLM base URL |
-| `hermes_agent_local_model_name` | `qwen2.5-coder-14b` | ローカル LLM の model id (llama_server_deb_model_alias と揃える) |
-| `hermes_agent_local_context_length` | `65536` | ローカル LLM の context length |
-| `hermes_agent_default_provider` | `anthropic` | Hermes セッション開始時のデフォルト provider |
-| `hermes_agent_default_model` | `claude-sonnet-4-6` | デフォルト model |
+| `hermes_agent_local_base_url` | `http://127.0.0.1:8080/v1` | `model.base_url` に書くローカル LLM の OpenAI 互換 endpoint |
+| `hermes_agent_local_model_name` | `qwen2.5-coder-14b` | ローカル LLM の model id (`llama_server_deb_model_alias` と揃える) |
+| `hermes_agent_local_context_length` | `65536` | `model.context_length`。Hermes Agent は最小 64K を要求。auto-detect だと `n_ctx_train=32768` で弾かれるので明示する必要あり |
+| `hermes_agent_local_api_key` | `dummy` | `model.api_key`。llama-server はチェックしないが Hermes は値を要求 |
+
+設定ファイルは初回 bootstrap (`force: false`) のみで配置する。`hermes setup`
+/ `hermes model` 等で加えた修正は再ロール実行で消えない。撒き直したい場合は
+`~/.hermes/config.yaml` を手で消してから再実行する。
+
+Claude (Anthropic) 主脳構成にしたい場合は ansible 後に `hermes setup` を対話
+実行する (本ロールは認証情報を扱わない)。
 
 Dependencies
 ------------

@@ -159,8 +159,8 @@ hermes doctor                          # ✗ が出ていないか
 # Hermes セッション起動 → モデル切替
 hermes
 # プロンプト内で:
-/model custom:local                      # ローカル 14B
-/model anthropic:claude-sonnet-4-6        # Claude (認証済みなら)
+/model qwen2.5-coder-14b                  # ローカル 14B (provider プレフィクス無しでOK)
+/model claude-sonnet-4-6                  # Claude (hermes setup 済みなら)
 ```
 
 ---
@@ -208,7 +208,28 @@ journalctl -u llama-server -f          # 進捗を見る
 version` でクライアント・サーバ両方が見えることを確認 (Server 側が missing なら
 `systemctl status docker` で診断)。
 
-### 3.5 Hermes が長文セッションで挙動がおかしい
+### 3.5 `Failed to initialize agent: Model ... has a context window of 32,768 tokens`
+
+Hermes Agent はモデルに **最低 64K context** を要求する。`hermes model` で
+Custom OpenAI 互換 endpoint を auto-detect 登録すると、Hermes は llama-server の
+`/v1/models` から `n_ctx_train` を拾うが、Qwen2.5-Coder の素の値は 32768 で
+要件に満たない。`roles/hermes_agent` は `model.context_length: 65536` を
+config に明示するのでこのエラーは出ないが、CLI から登録した場合は手で追加が
+必要:
+
+```yaml
+model:
+  provider: custom
+  default: qwen2.5-coder-14b
+  base_url: http://127.0.0.1:8080/v1
+  api_key: dummy
+  context_length: 65536    # ← これを足す
+```
+
+(llama-server 側は `roles/llama_server_deb` が `--ctx-size 65536` で起動して
+RoPE 延長しているので、Hermes 側はその値を信用するだけで良い。)
+
+### 3.6 Hermes が長文セッションで挙動がおかしい
 
 ローカルモデル (Qwen2.5-Coder-14B) は本来 `n_ctx_train=32768` だが、
 `llama_server_deb_ctx_size: 65536` で起動するので **RoPE extrapolation** で

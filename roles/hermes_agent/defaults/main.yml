@@ -38,17 +38,24 @@ hermes_agent_apt_deps:
   - nodejs
 
 # --- Hermes config.yaml 生成パラメータ -----------------------------------
-# ~/.hermes/config.yaml の custom_providers に登録するローカル LLM の
-# OpenAI 互換 base URL。roles/llama_server_deb と組み合わせるなら
-# 既定の http://127.0.0.1:8080/v1 で OK。
+# Hermes 0.16.0 (config v27) は Custom OpenAI 互換エンドポイントを `model:`
+# ブロックに直接 base_url/api_key 埋め込む形で登録する。本ロールはローカル
+# LLM (`roles/llama_server_deb` の llama-server) を default にして初期 bootstrap
+# する。Anthropic Claude を主脳にしたい場合は ansible 後に `hermes setup` で
+# OAuth/API key を入れる (template モジュールは `force: false` 運用)。
+
+# ローカル LLM の OpenAI 互換 base URL。
 hermes_agent_local_base_url: "http://127.0.0.1:8080/v1"
 
 # 上記ローカル base_url が公開する model id。
 # roles/llama_server_deb の llama_server_deb_model_alias と揃える。
 hermes_agent_local_model_name: "qwen2.5-coder-14b"
+
+# Hermes Agent の最小要件は 64K context。Qwen2.5-Coder の n_ctx_train は
+# 32768 なので、llama-server 側で --ctx-size 65536 にして RoPE 延長し、
+# Hermes 側にも context_length を明示しないと「ctx 不足」で起動拒否される。
 hermes_agent_local_context_length: 65536
 
-# Hermes セッション開始時のデフォルトモデル (主脳)。
-# Anthropic の Claude Sonnet 4.6 を既定にしておく (Claude Max + クレジット運用想定)。
-hermes_agent_default_provider: "anthropic"
-hermes_agent_default_model: "claude-sonnet-4-6"
+# 認証不要なローカル LLM 向けダミー API key。Hermes は値を要求するが
+# llama-server 側はチェックしないので任意の文字列で良い。
+hermes_agent_local_api_key: "dummy"

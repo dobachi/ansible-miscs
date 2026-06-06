@@ -1,24 +1,23 @@
-# Hermes Agent 設定 — ローカル LLM と Claude の併用
-# Managed by Ansible role hermes_agent. Do not edit by hand.
+# Hermes Agent 設定 (config v27 / Hermes 0.16.0 想定)
+# Managed by Ansible role hermes_agent. Initial bootstrap only — `force: false`
+# が付いているので、Hermes CLI (`hermes setup` / `hermes model`) や手書きで
+# 加えた修正は再 ansible 実行で上書きされない。
 #
-# 認証 (APIキー / OAuth) はここには書かない。
-# `hermes setup` を対話実行するか、ANTHROPIC_API_KEY を export すること。
-
-custom_providers:
-  - name: local
-    base_url: {{ hermes_agent_local_base_url }}
-    models:
-      {{ hermes_agent_local_model_name }}:
-        context_length: {{ hermes_agent_local_context_length }}
+# v27 schema 観察結果 (2026-06):
+#   - `custom_providers:` キーは存在せず、`providers:` (dict) は空のまま
+#   - Custom OpenAI 互換エンドポイントは `model:` ブロックに直接 base_url /
+#     api_key を埋め込むフラット形式で登録する
+#   - `context_length` を明示しないと Hermes は /v1/models の n_ctx_train を
+#     見て判定する。Qwen2.5-Coder-14B は n_ctx_train=32768 で、Hermes Agent
+#     の最小要件 64K を下回るため、ここで 65536 を明示しておく必要がある
+#     (llama-server 側は --ctx-size 65536 で RoPE 延長して提供している)
+#
+# Claude (Anthropic) を主脳にする場合は `hermes setup` 実行後にこの config を
+# Hermes 自身が拡張する。`force: false` 運用なので CLI 側の修正が勝つ。
 
 model:
-  # 主脳は Claude (設計・生成・複雑な tool calling)。
-  # セッション内で /model custom:local に切ると上の local LLM に逃がせる。
-  provider: {{ hermes_agent_default_provider }}
-  default: {{ hermes_agent_default_model }}
-
-# 補助タスク (要約・整形など) をローカル LLM に振りたい場合の例:
-# auxiliary:
-#   web_summary:
-#     provider: custom
-#     model: {{ hermes_agent_local_model_name }}
+  provider: custom
+  default: {{ hermes_agent_local_model_name }}
+  base_url: {{ hermes_agent_local_base_url }}
+  api_key: {{ hermes_agent_local_api_key }}
+  context_length: {{ hermes_agent_local_context_length }}
