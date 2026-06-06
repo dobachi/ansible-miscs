@@ -13,8 +13,13 @@
 hermes_agent_enable: false
 
 # Hermes を入れる対象ユーザー (~/.hermes 配下に展開される)。
-# 既定では ansible-playbook の実行ユーザー (target host 上の sudo 元)。
-hermes_agent_user: "{{ ansible_user_id }}"
+#
+# 既定値は SUDO_USER (sudo ansible-playbook の元ユーザー、例: dobachi)。
+# `ansible_user_id` を使うと become: true 下で 'root' に化けて
+# /root/.hermes/ に書かれてしまうため、SUDO_USER 経路を優先する。
+# remote SSH 経由など SUDO_USER が無い場合は ansible_user_id にフォールバック。
+# 別ユーザーに入れたいなら playbook / extra-vars で明示的に上書きする。
+hermes_agent_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_user_id, true) }}"
 
 # Hermes 公式 per-user インストーラ URL。
 # 中身は curl | bash 流の installer で、~/.hermes/hermes-agent/ に
