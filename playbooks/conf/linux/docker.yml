@@ -1,3 +1,16 @@
+---
+# Docker CE + Compose v2 plugin を Ubuntu (24.04 / 26.04) に導入する。
+#
+# 実行例 (k16 ローカル, dobachi を docker グループに追加):
+#   ansible-playbook -i hosts playbooks/conf/linux/docker.yml \
+#     -e server=localhost \
+#     -e docker_enable=true \
+#     -e docker_users='[dobachi]'
+#
+# 旧 jammy ベース / Debian / CentOS / Rocky で動かしたい場合は
+# playbooks/conf/wsl/docker.yml 等 (docker_legacy を参照) を使う。
+
 - hosts: "{{ server | default('wsl') }}"
+  become: true
   roles:
-    - docker_legacy
+    - docker
