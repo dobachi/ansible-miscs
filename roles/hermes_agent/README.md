@@ -35,7 +35,6 @@ Role Variables
 | `hermes_agent_local_model_name` | `qwen2.5-coder-14b` | ローカル LLM の model id (`llama_server_deb_model_alias` と揃える) |
 | `hermes_agent_local_context_length` | `65536` | Hermes Agent は最小 64K を要求。明示しないと `n_ctx_train=32768` で弾かれる |
 | `hermes_agent_local_api_key` | `dummy` | llama-server はチェックしないが Hermes は値を要求 |
-| `hermes_agent_local_api_mode` | `chat_completions` | Hermes auto-detect が Ollama と誤判定するのを抑制。詳細は [docs/hermes.md](../../docs/hermes.md) §3.5 |
 | `hermes_agent_reset_config` | `false` | true にするとロールが `~/.hermes/config.yaml` を強制上書きする (元ファイルは backup: で `.~` 退避)。テンプレを変えた直後の反映用 |
 
 設定ファイルは既定で初回 bootstrap (`force: false`) のみで配置する。

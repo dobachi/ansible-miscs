@@ -6,25 +6,26 @@
 # 上書きされない。テンプレ変更を強制反映したいときは
 # `-e hermes_agent_reset_config=true` を渡す。
 #
-# v27 schema 観察結果 (2026-06):
-#   - 主脳の provider 情報 (base_url / api_key / api_mode) は `model:` ブロック
-#     に **直接** 書く。`model.provider: custom` だけだと OpenRouter
-#     (custom のデフォルト) にフォールバックして HTTP 400 になる
-#   - `api_mode: chat_completions` を明示しないと auto-detect が
-#     llama-server の `/v1/models` レスポンスに含まれる Ollama 互換フィールド
-#     を見て Ollama 判定 → `/api/chat` を叩いて HTTP 405 になる
-#   - Hermes Agent は最低 64K context を要求する。Qwen2.5-Coder の
-#     n_ctx_train は 32768 なので、llama-server 側で --ctx-size 65536 に
-#     RoPE 延長し、ここでも context_length を明示しておく必要がある
+# Hermes 0.16.0 ソース読解 (hermes_cli/providers.py) で確定した正解:
 #
-# 副 provider (Claude や OpenRouter など) を併用する場合は ansible 実行後に
-# `hermes setup` / `hermes model` で追加登録すると custom_providers セクションに
-# 書かれる。ロールはここを生成しないので CLI 側の編集を尊重する。
+#   - llama.cpp の OpenAI 互換サーバには **公式 alias `llamacpp` を使う**
+#     (`"llamacpp" / "llama.cpp" / "llama-cpp"` はすべて内部で `"local"` に
+#     正規化される)。`provider: "custom"` (bare) はソース上 "corrupt state from
+#     a prior model-switch bug" 扱いで挙動が予測不能 (GH #17478 の自己回復
+#     ロジック対象)。
+#   - llamacpp/local provider は HermesOverlay に登録されていないので
+#     `model.base_url` / `model.api_key` を直接書く必要がある (Hermes は
+#     URL から transport を判定し、127.0.0.1 系は default の chat_completions
+#     にフォールバック)
+#   - Qwen2.5-Coder は n_ctx_train=32768 なので llama-server 側で
+#     --ctx-size 65536 に RoPE 延長したうえで Hermes 側にも明示する必要がある
+#     (Hermes Agent の最小要件 64K)
+#
+# Anthropic Claude を併用する場合は `hermes setup` で認証情報を入れる。
 
 model:
-  provider: custom
+  provider: llamacpp
   default: {{ hermes_agent_local_model_name }}
   base_url: {{ hermes_agent_local_base_url }}
   api_key: {{ hermes_agent_local_api_key }}
-  api_mode: {{ hermes_agent_local_api_mode }}
   context_length: {{ hermes_agent_local_context_length }}

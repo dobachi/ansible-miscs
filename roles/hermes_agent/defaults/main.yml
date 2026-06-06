@@ -70,14 +70,11 @@ hermes_agent_local_context_length: 65536
 # llama-server 側はチェックしないので任意の文字列で良い。
 hermes_agent_local_api_key: "dummy"
 
-# Hermes が叩く API モード。`chat_completions` を明示しないと auto-detect が
-# llama-server の `/v1/models` レスポンスに含まれる Ollama 互換フィールドを
-# 見て Ollama 判定 → `/api/chat` を叩いて HTTP 405 になる事故が起きる。
-# 選択肢:
-#   chat_completions  - 標準 OpenAI /v1/chat/completions (llama-server はこれ)
-#   responses         - OpenAI Responses / Codex 系
-#   anthropic         - Anthropic /v1/messages
-hermes_agent_local_api_mode: "chat_completions"
+# (削除) hermes_agent_local_api_mode:
+# Hermes 0.16.0 の hermes_cli/providers.py を読んだ結果、`model.api_mode` は
+# 明示不要。`provider: llamacpp` (テンプレ参照) で alias 解決 → 内部 "local"
+# → determine_api_mode が URL ヒューリスティクスで chat_completions に
+# フォールバックする (default)。
 
 # 既存の ~/.hermes/config.yaml をロールのテンプレで強制上書きするか。
 #   false (既定): force:false 動作。既存ファイルは触らない (CLI/手書き修正を保持)

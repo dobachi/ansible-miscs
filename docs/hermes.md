@@ -233,28 +233,34 @@ llama-server は OpenAI 標準の `data:` に加えて Ollama 互換の `models:
 | `Failed to initialize agent: ... 32,768 tokens` | OpenAI 互換と判定したが `n_ctx_train=32768` を読んで 64K 要件未満 | `model.context_length: 65536` |
 | `Ollama runtime context is too small for Hermes tool use` | Ollama と判定したが `num_ctx` が未設定で 32768 扱い | `model.ollama_num_ctx: 65536` (応急処置) |
 | `HTTP 405: Method Not Allowed` | Ollama と判定して `/api/chat` を叩こうとしたが llama-server がサポートせず | **`api_mode: chat_completions` を明示**して Ollama 判定を抑制 |
-| `HTTP 400: qwen2.5-coder-7b is not a valid model ID` (Endpoint が `openrouter.ai`) | `model:` ブロックに base_url が無く、`provider: custom` が OpenRouter にフォールバック | provider 情報を `model:` に**直接書く**(`custom_providers` だけだと参照されない) |
+| `HTTP 400: qwen2.5-coder-7b is not a valid model ID` (Endpoint が `openrouter.ai`) | `model:` ブロックに base_url が無く、`provider: custom` が OpenRouter にフォールバック | provider 情報を `model:` に**直接書く** + alias を使う |
 
-`roles/hermes_agent` は **`model:` ブロックに provider 情報を直接埋め込む**
-形を採用しているので、これら全部回避される:
+`roles/hermes_agent` は **公式 alias `provider: llamacpp` を使う**形に揃えてある。
+Hermes 0.16.0 のソース (`hermes_cli/providers.py`) を見ると:
+
+- `llamacpp` / `llama.cpp` / `llama-cpp` はすべて内部で `local` に正規化される
+- `provider: "custom"` (bare) は GH #17478 の自己回復ロジック対象で挙動が不安定
+- llamacpp/local provider は overlay 未登録なので、`base_url`/`api_key` は `model:` に直書きが必須
+- `api_mode` は明示不要 (`determine_api_mode` が default で `chat_completions` を返す)
+
+最終的に動く最小 config:
 
 ```yaml
 model:
-  provider: custom
+  provider: llamacpp                # ← OpenRouter フォールバック / 405 / 400 全部回避
   default: qwen2.5-coder-7b
   base_url: http://127.0.0.1:8080/v1
   api_key: dummy
-  api_mode: chat_completions       # ← Ollama 判定を抑制、HTTP 405 / 400 回避
-  context_length: 65536            # ← ctx 64K を Hermes に明示
+  context_length: 65536             # ← ctx 64K を Hermes に明示
 ```
 
-CLI (`hermes model`) から登録した場合は、`API compatibility mode` の選択で
-**`2. Chat Completions`** を選ぶこと。`1. Auto-detect` は llama-server に対しては
-不安定。
+CLI (`hermes model`) から登録した場合のフォールバックは「**Custom OpenAI-compatible
+endpoint**」+「**2. Chat Completions**」モード。これだと `custom_providers:` リスト
+に登録される (`model.provider:` から `custom:<name>` slug 経由で参照される)。
 
 副 provider (Claude や OpenRouter) を併用したい場合は ansible 実行後に
-`hermes setup` / `hermes model` を回すと `custom_providers:` セクションに
-登録される (ロールはそこを書かないので CLI 側の編集を尊重する)。
+`hermes setup` を回す (ロールは `model:` ブロックのみ管理し、`custom_providers:`
+セクションは CLI 側の編集を尊重する)。
 
 ### 3.6 Hermes が長文セッションで挙動がおかしい
 
