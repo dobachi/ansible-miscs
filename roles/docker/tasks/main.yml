@@ -61,13 +61,30 @@
         enabled: true
       when: docker_service_enable | bool
 
+    # ansible-playbook -e docker_users='[dobachi]' のように渡すと文字列扱いされる
+    # ので、ここで list に正規化する。受け付ける形式:
+    #   - 本物のリスト: ["dobachi"], ["a","b"]
+    #   - YAML flow 風文字列: "[dobachi]" / "[dobachi, foo]"
+    #   - 単一ユーザー名: "dobachi"
+    #   - カンマ区切り: "dobachi,foo"
+    - name: Normalize docker_users to a real list
+      ansible.builtin.set_fact:
+        _docker_users_list: >-
+          {{ docker_users
+             if (docker_users is iterable and docker_users is not string)
+             else (docker_users | string | regex_replace('[\[\]\"]', '')
+                                        | split(',')
+                                        | map('trim')
+                                        | reject('equalto', '')
+                                        | list) }}
+
     - name: Add users to docker group (sudo 不要で docker CLI を叩けるように)
       ansible.builtin.user:
         name: "{{ item }}"
         groups: docker
         append: true
-      loop: "{{ docker_users }}"
-      when: docker_users | length > 0
+      loop: "{{ _docker_users_list }}"
+      when: _docker_users_list | length > 0
 
   tags:
     - docker
