@@ -1,0 +1,6 @@
+---
+- hosts: localhost
+  become: true
+  roles:
+    - role: fude
+      fude_enable: true

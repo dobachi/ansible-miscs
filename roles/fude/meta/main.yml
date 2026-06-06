@@ -1,0 +1,19 @@
+galaxy_info:
+  author: dobachi
+  description: Install dobachi/fude (Tauri) from upstream GitHub Releases .deb
+  license: BSD-3-Clause
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - desktop
+    - tauri
+
+dependencies: []

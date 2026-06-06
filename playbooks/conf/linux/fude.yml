@@ -1,0 +1,20 @@
+---
+# dobachi/fude (Tauri アプリ) を upstream .deb で導入する。
+#
+# 実行例 (最新リリース):
+#   ansible-playbook -i hosts playbooks/conf/linux/fude.yml \
+#     -e server=localhost \
+#     -e fude_enable=true
+#
+# バージョン固定:
+#   ansible-playbook -i hosts playbooks/conf/linux/fude.yml \
+#     -e server=localhost \
+#     -e fude_enable=true \
+#     -e fude_version=v0.3.7
+
+- hosts: "{{ server | default('localhost') }}"
+  become: true
+  roles:
+    - fude
+
+# vim: et ts=2 sw=2:

@@ -1,0 +1,27 @@
+---
+# defaults file for roles/fude
+#
+# dobachi/fude (Tauri 製アプリ) の upstream .deb を GitHub Releases から取って
+# apt 経由で導入する。rclone_sharepoint と同じ「upstream .deb + apt」路線。
+#
+# 現リリース (v0.3.7) には amd64 の .deb しか無いため、本ロールは amd64 専用
+# (arm64 を踏むと assert で弾く)。AppImage / RPM 派生が必要になったら別ロール。
+
+# このロール本体を実行するかのスイッチ。
+fude_enable: false
+
+# GitHub の owner/repo。fork したい人は host_vars で差し替え。
+fude_repo: dobachi/fude
+
+# 入れるバージョン。
+#   - "latest" : GitHub Releases API で最新タグを解決
+#   - "v0.3.7" : 固定タグ (API は叩かない)
+fude_version: latest
+
+# .deb のファイル名に入るアーキ表記。空なら ansible_facts['architecture']
+# (x86_64/aarch64) を amd64/arm64 にマップして自動解決。
+# 現リリースは amd64 のみ。
+fude_arch: ""
+
+# .deb を落とす一時ディレクトリ。インストール後に削除する。
+fude_download_dir: /tmp

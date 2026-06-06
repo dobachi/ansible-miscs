@@ -1,0 +1,97 @@
+---
+# tasks file for roles/fude
+#
+# 流れ:
+#   1. Debian 系であることを確認 + ターゲットアーキを解決
+#   2. fude_version=latest なら GitHub Releases API で tag_name を取得
+#   3. dpkg-query で既存インストール版を見て、要否を判定 (べき等性)
+#   4. /tmp に .deb を落として apt deb=... でインストール
+#   5. /tmp の .deb を後片付け
+
+- block:
+
+    - name: Assert running on a Debian-family OS
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == "Debian"
+        fail_msg: >-
+          roles/fude は Debian/Ubuntu 専用 (.deb をインストールするため)。
+          現: {{ ansible_facts['os_family'] }} / {{ ansible_facts['distribution'] }}
+
+    - name: Resolve target architecture (x86_64 → amd64, aarch64 → arm64)
+      ansible.builtin.set_fact:
+        fude_target_arch: >-
+          {{ fude_arch
+             if (fude_arch | length > 0)
+             else ({'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']]
+                   | default(ansible_facts['architecture'])) }}
+
+    - name: Assert architecture has an upstream .deb (現リリースは amd64 のみ)
+      ansible.builtin.assert:
+        that:
+          - fude_target_arch | trim == "amd64"
+        fail_msg: >-
+          fude は現在 amd64 の .deb しか提供されていません
+          (解決アーキ: {{ fude_target_arch | trim }})。
+
+    - name: Fetch latest release metadata from GitHub Releases API
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ fude_repo }}/releases/latest"
+        return_content: true
+      register: fude_latest_release
+      when: fude_version == "latest"
+
+    - name: Resolve tag and version strings
+      ansible.builtin.set_fact:
+        fude_resolved_tag: >-
+          {{ (fude_latest_release.json.tag_name)
+             if fude_version == "latest"
+             else fude_version }}
+
+    - name: Strip leading 'v' from tag to get debian version string
+      ansible.builtin.set_fact:
+        fude_resolved_version: "{{ fude_resolved_tag | trim | regex_replace('^v', '') }}"
+
+    - name: Check installed Fude version (if any)
+      ansible.builtin.command: dpkg-query -W -f=${Version} fude
+      register: fude_installed_check
+      changed_when: false
+      failed_when: false
+
+    - name: Decide whether to download/install
+      ansible.builtin.set_fact:
+        fude_should_install: >-
+          {{ (fude_installed_check.rc != 0) or
+             (fude_installed_check.stdout | trim != fude_resolved_version) }}
+
+    - name: Show what will happen
+      ansible.builtin.debug:
+        msg: >-
+          installed='{{ fude_installed_check.stdout | trim }}'
+          target='{{ fude_resolved_version }}'
+          will_install={{ fude_should_install }}
+
+    - name: Download Fude .deb from GitHub Releases
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/{{ fude_repo }}/releases/download/{{ fude_resolved_tag }}/Fude_{{ fude_resolved_version }}_{{ fude_target_arch }}.deb
+        dest: "{{ fude_download_dir }}/Fude_{{ fude_resolved_version }}_{{ fude_target_arch }}.deb"
+        mode: "0644"
+      when: fude_should_install | bool
+
+    - name: Install Fude .deb (apt が依存も解決)
+      ansible.builtin.apt:
+        deb: "{{ fude_download_dir }}/Fude_{{ fude_resolved_version }}_{{ fude_target_arch }}.deb"
+      when: fude_should_install | bool
+
+    - name: Clean up downloaded .deb
+      ansible.builtin.file:
+        path: "{{ fude_download_dir }}/Fude_{{ fude_resolved_version }}_{{ fude_target_arch }}.deb"
+        state: absent
+      when: fude_should_install | bool
+
+  tags:
+    - fude
+  when: fude_enable | bool
+
+# vim: set et ts=2 sw=2:
