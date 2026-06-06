@@ -69,3 +69,9 @@ hermes_agent_local_context_length: 65536
 # 認証不要なローカル LLM 向けダミー API key。Hermes は値を要求するが
 # llama-server 側はチェックしないので任意の文字列で良い。
 hermes_agent_local_api_key: "dummy"
+
+# 既存の ~/.hermes/config.yaml をロールのテンプレで強制上書きするか。
+#   false (既定): force:false 動作。既存ファイルは触らない (CLI/手書き修正を保持)
+#   true        : テンプレを反映するため上書き (元ファイルは backup: で .~ 退避)
+# テンプレ側を変えた直後にだけ `-e hermes_agent_reset_config=true` で渡す想定。
+hermes_agent_reset_config: false

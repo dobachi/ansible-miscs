@@ -52,22 +52,22 @@
         group: "{{ hermes_agent_user }}"
         mode: "0755"
 
-    # force: false にしている理由:
-    #   - Hermes 0.16.0 (v27) は初回起動時に config.yaml を全 default で展開
-    #     して 12 KB ほどに肥大化する。ユーザーが `hermes setup` / `hermes
-    #     model` で加えた修正もここに焼き付く。ロール再実行で最小テンプレに
-    #     戻すと、それらが全部消えるため。
-    #   - 初回 bootstrap だけ最小設定 (model: ブロック) を置き、以後は
-    #     Hermes 自身に管理させる。設定を撒き直したい場合は対象ファイルを
-    #     手で削除 (or backup を残して `state: absent`) してから再実行する。
-    - name: Bootstrap ~/.hermes/config.yaml (initial only, force false)
+    # force の挙動:
+    #   - 既定 (hermes_agent_reset_config=false): force:false で初回 bootstrap
+    #     のみ。`hermes setup` / `hermes model` 等で加えた修正は再ロール実行で
+    #     消えない。Hermes 0.16.0 (v27) は初回起動時に config.yaml を全 default
+    #     で展開して肥大化するので、それを尊重する。
+    #   - hermes_agent_reset_config=true: force:true で強制上書き。テンプレ側を
+    #     変えた直後 (ollama_num_ctx 追加など) に反映したい時に使う。元ファイル
+    #     は backup: で `.<PID>.<timestamp>~` の名前で退避される。
+    - name: Bootstrap ~/.hermes/config.yaml (force toggled by hermes_agent_reset_config)
       ansible.builtin.template:
         src: hermes-config.yaml.j2
         dest: "{{ _hermes_agent_home }}/.hermes/config.yaml"
         owner: "{{ hermes_agent_user }}"
         group: "{{ hermes_agent_user }}"
         mode: "0600"
-        force: false
+        force: "{{ hermes_agent_reset_config | bool }}"
         backup: true
 
     - name: Post-install reminders

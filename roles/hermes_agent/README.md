@@ -35,10 +35,13 @@ Role Variables
 | `hermes_agent_local_model_name` | `qwen2.5-coder-14b` | ローカル LLM の model id (`llama_server_deb_model_alias` と揃える) |
 | `hermes_agent_local_context_length` | `65536` | `model.context_length`。Hermes Agent は最小 64K を要求。auto-detect だと `n_ctx_train=32768` で弾かれるので明示する必要あり |
 | `hermes_agent_local_api_key` | `dummy` | `model.api_key`。llama-server はチェックしないが Hermes は値を要求 |
+| `hermes_agent_reset_config` | `false` | true にするとロールが `~/.hermes/config.yaml` を強制上書きする (元ファイルは backup: で `.~` 退避)。テンプレを変えた直後の反映用 |
 
-設定ファイルは初回 bootstrap (`force: false`) のみで配置する。`hermes setup`
-/ `hermes model` 等で加えた修正は再ロール実行で消えない。撒き直したい場合は
-`~/.hermes/config.yaml` を手で消してから再実行する。
+設定ファイルは既定で初回 bootstrap (`force: false`) のみで配置する。
+`hermes setup` / `hermes model` 等で加えた修正は再ロール実行で消えない。
+ロール側のテンプレを変えた直後に反映したい場合は
+`-e hermes_agent_reset_config=true` を渡して再実行する (元ファイルは
+`config.yaml.<PID>.<timestamp>~` の名前で残る)。
 
 Claude (Anthropic) 主脳構成にしたい場合は ansible 後に `hermes setup` を対話
 実行する (本ロールは認証情報を扱わない)。
