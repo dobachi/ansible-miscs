@@ -54,9 +54,6 @@ hermes_agent_apt_deps:
 # する。Anthropic Claude を主脳にしたい場合は ansible 後に `hermes setup` で
 # OAuth/API key を入れる (template モジュールは `force: false` 運用)。
 
-# custom_providers の name。`/model` 切替時の表示名にも使われる。
-hermes_agent_local_provider_name: "local"
-
 # ローカル LLM の OpenAI 互換 base URL。
 hermes_agent_local_base_url: "http://127.0.0.1:8080/v1"
 

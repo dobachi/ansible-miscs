@@ -233,30 +233,28 @@ llama-server は OpenAI 標準の `data:` に加えて Ollama 互換の `models:
 | `Failed to initialize agent: ... 32,768 tokens` | OpenAI 互換と判定したが `n_ctx_train=32768` を読んで 64K 要件未満 | `model.context_length: 65536` |
 | `Ollama runtime context is too small for Hermes tool use` | Ollama と判定したが `num_ctx` が未設定で 32768 扱い | `model.ollama_num_ctx: 65536` (応急処置) |
 | `HTTP 405: Method Not Allowed` | Ollama と判定して `/api/chat` を叩こうとしたが llama-server がサポートせず | **`api_mode: chat_completions` を明示**して Ollama 判定を抑制 |
+| `HTTP 400: qwen2.5-coder-7b is not a valid model ID` (Endpoint が `openrouter.ai`) | `model:` ブロックに base_url が無く、`provider: custom` が OpenRouter にフォールバック | provider 情報を `model:` に**直接書く**(`custom_providers` だけだと参照されない) |
 
-`roles/hermes_agent` は `custom_providers[].api_mode: chat_completions` を
-明示するので、これら全部回避される (Ollama 判定経路に入らないため
-`ollama_num_ctx` も不要):
+`roles/hermes_agent` は **`model:` ブロックに provider 情報を直接埋め込む**
+形を採用しているので、これら全部回避される:
 
 ```yaml
-custom_providers:
-  - name: local
-    base_url: http://127.0.0.1:8080/v1
-    api_key: dummy
-    model: qwen2.5-coder-7b
-    api_mode: chat_completions       # ← Ollama 判定を抑制
-    models:
-      qwen2.5-coder-7b:
-        context_length: 65536        # ← ctx 64K を Hermes に明示
-
 model:
   provider: custom
   default: qwen2.5-coder-7b
+  base_url: http://127.0.0.1:8080/v1
+  api_key: dummy
+  api_mode: chat_completions       # ← Ollama 判定を抑制、HTTP 405 / 400 回避
+  context_length: 65536            # ← ctx 64K を Hermes に明示
 ```
 
 CLI (`hermes model`) から登録した場合は、`API compatibility mode` の選択で
 **`2. Chat Completions`** を選ぶこと。`1. Auto-detect` は llama-server に対しては
 不安定。
+
+副 provider (Claude や OpenRouter) を併用したい場合は ansible 実行後に
+`hermes setup` / `hermes model` を回すと `custom_providers:` セクションに
+登録される (ロールはそこを書かないので CLI 側の編集を尊重する)。
 
 ### 3.6 Hermes が長文セッションで挙動がおかしい
 
