@@ -31,10 +31,12 @@ Role Variables
 | `hermes_agent_installer_url` | `https://hermes-agent.nousresearch.com/install.sh` | 公式 per-user installer URL |
 | `hermes_agent_install_apt_deps` | `true` | 依存 apt パッケージを入れるか |
 | `hermes_agent_apt_deps` | `[curl, ca-certificates, ripgrep, ffmpeg, nodejs]` | apt で揃える依存。Ubuntu 26.04 の `nodejs` は `npm` を内包するので `npm` は列挙しない |
-| `hermes_agent_local_base_url` | `http://127.0.0.1:8080/v1` | `model.base_url` に書くローカル LLM の OpenAI 互換 endpoint |
+| `hermes_agent_local_provider_name` | `local` | `custom_providers[].name`。`/model` 切替時の表示名にも使われる |
+| `hermes_agent_local_base_url` | `http://127.0.0.1:8080/v1` | ローカル LLM の OpenAI 互換 endpoint |
 | `hermes_agent_local_model_name` | `qwen2.5-coder-14b` | ローカル LLM の model id (`llama_server_deb_model_alias` と揃える) |
-| `hermes_agent_local_context_length` | `65536` | `model.context_length`。Hermes Agent は最小 64K を要求。auto-detect だと `n_ctx_train=32768` で弾かれるので明示する必要あり |
-| `hermes_agent_local_api_key` | `dummy` | `model.api_key`。llama-server はチェックしないが Hermes は値を要求 |
+| `hermes_agent_local_context_length` | `65536` | Hermes Agent は最小 64K を要求。明示しないと `n_ctx_train=32768` で弾かれる |
+| `hermes_agent_local_api_key` | `dummy` | llama-server はチェックしないが Hermes は値を要求 |
+| `hermes_agent_local_api_mode` | `chat_completions` | Hermes auto-detect が Ollama と誤判定するのを抑制。詳細は [docs/hermes.md](../../docs/hermes.md) §3.5 |
 | `hermes_agent_reset_config` | `false` | true にするとロールが `~/.hermes/config.yaml` を強制上書きする (元ファイルは backup: で `.~` 退避)。テンプレを変えた直後の反映用 |
 
 設定ファイルは既定で初回 bootstrap (`force: false`) のみで配置する。

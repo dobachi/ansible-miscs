@@ -1,28 +1,33 @@
 # Hermes Agent 設定 (config v27 / Hermes 0.16.0 想定)
-# Managed by Ansible role hermes_agent. Initial bootstrap only — `force: false`
-# が付いているので、Hermes CLI (`hermes setup` / `hermes model`) や手書きで
-# 加えた修正は再 ansible 実行で上書きされない。
+# Managed by Ansible role hermes_agent.
+#
+# 既定では initial bootstrap only (`force: false` 相当)。Hermes CLI
+# (`hermes setup` / `hermes model`) や手書きで加えた修正は再 ansible 実行で
+# 上書きされない。テンプレ変更を強制反映したいときは
+# `-e hermes_agent_reset_config=true` を渡す。
 #
 # v27 schema 観察結果 (2026-06):
-#   - `custom_providers:` キーは存在せず、`providers:` (dict) は空のまま
-#   - Custom OpenAI 互換エンドポイントは `model:` ブロックに直接 base_url /
-#     api_key を埋め込むフラット形式で登録する
-#   - `context_length` を明示しないと Hermes は /v1/models の n_ctx_train を
-#     見て判定する。Qwen2.5-Coder-14B は n_ctx_train=32768 で、Hermes Agent
-#     の最小要件 64K を下回るため、ここで 65536 を明示しておく必要がある
-#     (llama-server 側は --ctx-size 65536 で RoPE 延長して提供している)
-#   - llama-server の /v1/models レスポンスは OpenAI 標準の `data:` に加えて
-#     Ollama 互換の `models:` キーも同梱しているため、Hermes の auto-detect
-#     が Ollama と誤判定する。その場合 `ollama_num_ctx` を見に行くので、
-#     これも明示的に渡しておく (Ollama 判定でも llama-server 判定でも害なし)
+#   - `custom_providers:` は list-of-dicts (各 provider が dict、name/base_url/
+#     api_key/model/api_mode + models: の入れ子辞書)
+#   - `api_mode: chat_completions` を明示しないと auto-detect が
+#     llama-server の `/v1/models` レスポンスに含まれる Ollama 互換フィールド
+#     を見て Ollama 判定 → `/api/chat` を叩いて HTTP 405 になる
+#   - Hermes Agent は最低 64K context を要求する。Qwen2.5-Coder の
+#     n_ctx_train は 32768 なので、llama-server 側で --ctx-size 65536 に
+#     RoPE 延長し、ここでも context_length を明示しておく必要がある
 #
-# Claude (Anthropic) を主脳にする場合は `hermes setup` 実行後にこの config を
-# Hermes 自身が拡張する。`force: false` 運用なので CLI 側の修正が勝つ。
+# Anthropic Claude を併用する場合は `hermes setup` で認証情報を入れる。
+
+custom_providers:
+  - name: {{ hermes_agent_local_provider_name }}
+    base_url: {{ hermes_agent_local_base_url }}
+    api_key: {{ hermes_agent_local_api_key }}
+    model: {{ hermes_agent_local_model_name }}
+    api_mode: {{ hermes_agent_local_api_mode }}
+    models:
+      {{ hermes_agent_local_model_name }}:
+        context_length: {{ hermes_agent_local_context_length }}
 
 model:
   provider: custom
   default: {{ hermes_agent_local_model_name }}
-  base_url: {{ hermes_agent_local_base_url }}
-  api_key: {{ hermes_agent_local_api_key }}
-  context_length: {{ hermes_agent_local_context_length }}
-  ollama_num_ctx: {{ hermes_agent_local_context_length }}

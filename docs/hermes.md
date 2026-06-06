@@ -222,36 +222,41 @@ journalctl -u llama-server -f          # 進捗を見る
 version` でクライアント・サーバ両方が見えることを確認 (Server 側が missing なら
 `systemctl status docker` で診断)。
 
-### 3.5 `Failed to initialize agent: ... 32,768 tokens` / `Ollama runtime context is too small`
+### 3.5 ctx 不足 / Ollama 誤判定 / HTTP 405
 
-Hermes Agent はモデルに **最低 64K context** を要求する。エラーが2系統あり、
-出方は Hermes auto-detect が API endpoint を OpenAI 互換と判定したか
-Ollama と判定したかで変わる:
+Hermes の auto-detect は `/v1/models` レスポンスの形状で API モードを推測する。
+llama-server は OpenAI 標準の `data:` に加えて Ollama 互換の `models:`
+キーも返すため、推測が安定しない。失敗の出方は3系統:
 
-- OpenAI 判定 → `Failed to initialize agent: ... has a context window of 32,768 tokens`
-- Ollama 判定 → `Ollama runtime context is too small for Hermes tool use`
+| エラー文言 | 原因 | 直し方 |
+| --- | --- | --- |
+| `Failed to initialize agent: ... 32,768 tokens` | OpenAI 互換と判定したが `n_ctx_train=32768` を読んで 64K 要件未満 | `model.context_length: 65536` |
+| `Ollama runtime context is too small for Hermes tool use` | Ollama と判定したが `num_ctx` が未設定で 32768 扱い | `model.ollama_num_ctx: 65536` (応急処置) |
+| `HTTP 405: Method Not Allowed` | Ollama と判定して `/api/chat` を叩こうとしたが llama-server がサポートせず | **`api_mode: chat_completions` を明示**して Ollama 判定を抑制 |
 
-llama-server の `/v1/models` レスポンスは OpenAI 標準の `data:` に加えて
-Ollama 互換の `models:` キーも同梱しているため、Hermes の auto-detect が
-Ollama と誤判定するケースがある。
-
-`roles/hermes_agent` の最新テンプレは両方を一度に潰すよう context 系を
-明示しているので発生しないはず:
+`roles/hermes_agent` は `custom_providers[].api_mode: chat_completions` を
+明示するので、これら全部回避される (Ollama 判定経路に入らないため
+`ollama_num_ctx` も不要):
 
 ```yaml
+custom_providers:
+  - name: local
+    base_url: http://127.0.0.1:8080/v1
+    api_key: dummy
+    model: qwen2.5-coder-7b
+    api_mode: chat_completions       # ← Ollama 判定を抑制
+    models:
+      qwen2.5-coder-7b:
+        context_length: 65536        # ← ctx 64K を Hermes に明示
+
 model:
   provider: custom
-  default: qwen2.5-coder-14b
-  base_url: http://127.0.0.1:8080/v1
-  api_key: dummy
-  context_length: 65536       # OpenAI 判定経路 (表示・上限)
-  ollama_num_ctx: 65536       # Ollama 判定経路 (Ollama 用 num_ctx)
+  default: qwen2.5-coder-7b
 ```
 
-CLI (`hermes model`) から登録した場合は両方とも手で書く必要がある。
-
-(llama-server 側は `roles/llama_server_deb` が `--ctx-size 65536` で起動して
-RoPE 延長しているので、Hermes 側はその値を信用するだけで良い。)
+CLI (`hermes model`) から登録した場合は、`API compatibility mode` の選択で
+**`2. Chat Completions`** を選ぶこと。`1. Auto-detect` は llama-server に対しては
+不安定。
 
 ### 3.6 Hermes が長文セッションで挙動がおかしい
 
