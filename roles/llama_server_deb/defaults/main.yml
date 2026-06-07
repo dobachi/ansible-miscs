@@ -17,9 +17,17 @@
 # このロール本体を実行するかのスイッチ。
 llama_server_deb_enable: false
 
-# パッケージ同梱の systemd unit を enable/start するか。
-# 設定だけしてサービスは触らない、という運用に false で切替可能。
+# パッケージ同梱の systemd unit を enable/start するか (master gate)。
+# 設定ファイルだけ書いてサービス自体は触らない、という運用に false で切替可能。
 llama_server_deb_enable_unit: true
+
+# 上記 master gate が true 時のみ評価される細分化。
+# - enabled : boot 時に auto-start するか
+# - state   : ansible 実行時の最終状態 (started | stopped | reloaded | restarted)
+# host_vars で「設定は反映するが boot で勝手に立ち上がるのは嫌」のような
+# パターンを表現する想定。
+llama_server_deb_unit_enabled: true
+llama_server_deb_unit_state: "started"
 
 # 待ち受け
 llama_server_deb_host: "127.0.0.1"
@@ -50,6 +58,24 @@ llama_server_deb_model_path: ""
 # llama-server が応答する OpenAI 互換 model id (alias)。
 # Hermes config (roles/hermes_agent) の local_model_name と揃えること。
 llama_server_deb_model_alias: "qwen2.5-coder-14b"
+
+# --- カスタム chat template (tool-use 等) -------------------------------
+# llama-server がモデルの GGUF メタデータに焼かれた chat_template を使うか、
+# 明示した jinja ファイルを使うか。Hermes-3 のように GGUF 既定が base ChatML
+# で tool-use 用 template が別 entry に隠れているモデルでは、ここに専用
+# ファイルを当てないと `<tool_call>` の発火が起きない。
+#
+# 動作:
+#   - src が非空: roles/llama_server_deb/files/<src> を remote の dest にコピー
+#   - dest が非空: /etc/default/llama-server に LLAMA_ARG_CHAT_TEMPLATE_FILE=dest を render
+#   - src 空 + dest 既存ファイル: コピーせず env 行だけ render (手動配置運用)
+#   - 両方空: 完全に何もしない (GGUF 同梱 chat_template が使われる)
+#
+# ロール同梱の既知 template:
+#   chat-template-hermes3-tool_use.j2 (Nous Hermes-3 公式 tokenizer_config.json の
+#                                      tool_use entry をそのまま抜いたもの)
+llama_server_deb_chat_template_src: ""
+llama_server_deb_chat_template_file: ""
 
 # /etc/default/llama-server に追記したい任意の環境変数 (key: value 形式)。
 # 例: { LLAMA_API_KEY: "secret123" } で外部公開時の簡易認証を付ける。

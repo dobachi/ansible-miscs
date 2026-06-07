@@ -32,6 +32,18 @@
           どちらかは設定してください (両方空だと llama-server が
           起動できません)。
 
+    - name: Install custom chat template file (only when src is set)
+      ansible.builtin.copy:
+        src: "{{ llama_server_deb_chat_template_src }}"
+        dest: "{{ llama_server_deb_chat_template_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      when:
+        - llama_server_deb_chat_template_src | length > 0
+        - llama_server_deb_chat_template_file | length > 0
+      notify: restart llama-server
+
     - name: Configure /etc/default/llama-server
       ansible.builtin.template:
         src: llama-server.env.j2
@@ -42,11 +54,11 @@
         backup: true
       notify: restart llama-server
 
-    - name: Enable and start llama-server.service
+    - name: Apply systemd unit state for llama-server.service
       ansible.builtin.systemd:
         name: llama-server
-        enabled: true
-        state: started
+        enabled: "{{ llama_server_deb_unit_enabled | bool }}"
+        state: "{{ llama_server_deb_unit_state }}"
         daemon_reload: true
       when: llama_server_deb_enable_unit | bool
 
