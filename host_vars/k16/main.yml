@@ -16,13 +16,31 @@ rclone_sharepoint_remote_name: "dobachi-private"
 
 # --- ローカル AI 環境 (docs/hermes.md) ----------------------------------
 # Hermes Agent + llama-server (Vulkan / AMD iGPU = Radeon 680M)。
-# 既定の Qwen2.5-Coder-14B (Q4_K_M / 9 GB) より速い 7B (Q4_K_M / 4.7 GB) を採用。
-# Hermes Agent の 64K context 要件は llama-server 側で --ctx-size 65536 に
-# RoPE 延長して満たす (defaults の llama_server_deb_ctx_size: 65536)。
-llama_server_deb_hf_repo: "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF"
-llama_server_deb_hf_file: "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf"
-llama_server_deb_model_alias: "qwen2.5-coder-7b"
+# Qwen2.5-Coder-7B (Q4_K_M / 4.7 GB) は coding 補完は速いが tool-use 出力が
+# `<tool_call>` タグでなく markdown コードブロックになり、write_file 等が
+# 一切実行されない症状を踏んだ。Nous Research 自身が Hermes Agent に整合
+# させて出している Hermes-3 Llama-3.1 8B (Q4_K_M / 4.9 GB) に差し替えて
+# 検証中。
+# Llama-3.1 は native 128K context なので Hermes Agent の 64K 要件は
+# RoPE 延長無しで満たせる (llama_server_deb_ctx_size: 65536 のまま)。
+llama_server_deb_hf_repo: "bartowski/Hermes-3-Llama-3.1-8B-GGUF"
+llama_server_deb_hf_file: "Hermes-3-Llama-3.1-8B-Q4_K_M.gguf"
+llama_server_deb_model_alias: "hermes-3-llama-3.1-8b"
 
 # Hermes 側の参照モデル名を llama-server の alias と揃える。
-hermes_agent_local_model_name: "qwen2.5-coder-7b"
+hermes_agent_local_model_name: "hermes-3-llama-3.1-8b"
+
+# Hermes-3 の GGUF は default で素 ChatML (tool-use 用 jinja は別 entry に
+# 入っている) のため、llama-server が `<tools>` をシステムプロンプトに焼かず
+# tool-call が発火しない。tokenizer_config.json から抜いた `tool_use` template
+# を /etc/llama-server-hermes3-tool_use.j2 に配置し、--chat-template-file で
+# 明示する。
+llama_server_deb_chat_template_src: "chat-template-hermes3-tool_use.j2"
+llama_server_deb_chat_template_file: "/etc/llama-server-hermes3-tool_use.j2"
+
+# k16 はメインの開発機。llama-server を boot 時に勝手に立ち上げず、
+# 必要なときだけ `sudo systemctl start llama-server` で手動制御する運用。
+# ansible は設定反映のみ行い、systemd unit は disable + (現状) stopped を保つ。
+llama_server_deb_unit_enabled: false
+llama_server_deb_unit_state: "stopped"
 
