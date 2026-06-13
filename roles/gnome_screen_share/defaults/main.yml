@@ -28,6 +28,20 @@ gnome_screen_share_install: true
 gnome_screen_share_rdp_username: ""
 gnome_screen_share_rdp_password: ""
 
+# ---- systemd unit 状態 (user mode 3389 / system mode 3390) -----------
+# RDP をやめて他の遠隔操作 (例: VNC) に切替えたいが、grdctl の設定や
+# TLS cert などはアンインストールせず残しておきたい、というケースで
+# *_unit_state: stopped + *_unit_enabled: false を渡せば service だけ
+# 休眠状態にできる (host_vars 側で個別に override する想定)。
+
+# Desktop Sharing (port 3389, per-user systemd)
+gnome_screen_share_user_unit_enabled: true
+gnome_screen_share_user_unit_state: "started"
+
+# Remote Login (port 3390, system systemd)
+gnome_screen_share_system_unit_enabled: true
+gnome_screen_share_system_unit_state: "started"
+
 # ---- Desktop Sharing (user mode, port 3389) -------------------------
 # true = 閲覧のみ (リモート側からマウス/キーボード操作不可)
 gnome_screen_share_view_only: false

@@ -218,11 +218,11 @@
       changed_when: false
       when: gnome_screen_share_enable_remote_login | bool
 
-    - name: Enable & start system gnome-remote-desktop.service
+    - name: Apply systemd unit state for system gnome-remote-desktop.service
       ansible.builtin.systemd:
         name: gnome-remote-desktop.service
-        enabled: true
-        state: started
+        enabled: "{{ gnome_screen_share_system_unit_enabled | bool }}"
+        state: "{{ gnome_screen_share_system_unit_state }}"
       when: gnome_screen_share_enable_remote_login | bool
 
     - name: Open Remote Login RDP port from Tailscale IPv4 subnets via ufw
@@ -272,6 +272,9 @@
     - gnome_screen_share
 
 # --- ここから per-user タスク (デスクトップユーザの DBus を必要とする) ---
+# user_unit_state == "started" のときだけ grdctl で設定書込 + status 表示。
+# stopped のときは systemd の disable+stop だけ走らせる (grdctl は DBus に
+# 繋ぐが daemon を止めようとしている瞬間なので呼ばない方が安全)。
 - block:
     - name: Set RDP credentials via grdctl
       ansible.builtin.command:
@@ -286,6 +289,7 @@
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
         DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+      when: gnome_screen_share_user_unit_state == "started"
 
     - name: Set RDP view-only mode
       ansible.builtin.command:
@@ -297,6 +301,7 @@
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
         DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+      when: gnome_screen_share_user_unit_state == "started"
 
     - name: Enable RDP via grdctl
       ansible.builtin.command:
@@ -305,13 +310,14 @@
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
         DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+      when: gnome_screen_share_user_unit_state == "started"
 
-    - name: Enable & start gnome-remote-desktop user service
+    - name: Apply user systemd unit state for gnome-remote-desktop.service
       ansible.builtin.systemd:
         name: gnome-remote-desktop.service
         scope: user
-        enabled: true
-        state: started
+        enabled: "{{ gnome_screen_share_user_unit_enabled | bool }}"
+        state: "{{ gnome_screen_share_user_unit_state }}"
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
         DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
@@ -324,10 +330,14 @@
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ gnome_screen_share_user_uid }}"
         DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ gnome_screen_share_user_uid }}/bus"
+      when: gnome_screen_share_user_unit_state == "started"
 
     - name: grdctl status output
       ansible.builtin.debug:
         msg: "{{ _gss_status.stdout_lines }}"
+      when:
+        - gnome_screen_share_user_unit_state == "started"
+        - _gss_status.stdout_lines is defined
 
   become: false
   tags:
