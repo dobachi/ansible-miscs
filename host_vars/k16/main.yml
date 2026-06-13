@@ -4,12 +4,34 @@
 ansible_connection: local
 ansible_python_interpreter: /usr/bin/python3
 
+# --- 遠隔操作: VNC へ移行 (旧 RDP/gnome_screen_share は休眠) -------------
+# 経緯:
+#   - 3389 (Desktop Sharing) は物理ログイン中前提で、物理ディスプレイ未接続
+#     だと GDM がログインしてくれず使えない
+#   - 3390 (Remote Login) は新規 GNOME セッションを spawn するが、物理ログイン
+#     中の dobachi セッションがあると "既存セッションをログアウトする" 警告で
+#     接続不可 (GDM/logind の 1 ユーザー 1 セッション制約)
+#   - force_virtual_display: true で kernel cmdline に video=HDMI-A-1:... を
+#     入れる対処は、物理モニタ再接続時に EDID を上書きして縦横比を破壊する
+# よって RDP は休眠させ、Xvnc + Xfce4 の独立デスクトップ (VNC) に切替える。
+# パッケージや grdctl 設定はそのまま残し、systemd unit だけ停止する。
 gnome_screen_share_rdp_username: "dobachi"
 gnome_screen_share_rdp_password: "{{ vault_gnome_rdp_password }}"
+gnome_screen_share_force_virtual_display: false
+gnome_screen_share_user_unit_enabled: false
+gnome_screen_share_user_unit_state: "stopped"
+gnome_screen_share_system_unit_enabled: false
+gnome_screen_share_system_unit_state: "stopped"
 
-# k16 はディスプレイ未接続でも RDP (Remote Login) でログインできるように
-# kernel cmdline で HDMI-A-1 の仮想 EDID を強制。反映には reboot が必要。
-gnome_screen_share_force_virtual_display: true
+# --- VNC (TigerVNC standalone + Xfce4, port 5901) ----------------------
+# Wayland 専用の GNOME と完全に独立した Xvnc セッションを :1 に常駐させる。
+# 物理 HDMI 接続/未接続の状態に依存しない。Tailscale subnet からのみ allow。
+# パスワードは host_vars/k16/vault.yml で Vault 化:
+#   ansible-vault encrypt_string 'StrongPassword' \
+#     --name 'vault_vnc_password' >> host_vars/k16/vault.yml
+vnc_server_enable: true
+vnc_server_user: "dobachi"
+vnc_server_password: "{{ vault_vnc_password }}"
 
 rclone_sharepoint_enable: true
 rclone_sharepoint_remote_name: "dobachi-private"
@@ -43,4 +65,13 @@ llama_server_deb_chat_template_file: "/etc/llama-server-hermes3-tool_use.j2"
 # ansible は設定反映のみ行い、systemd unit は disable + (現状) stopped を保つ。
 llama_server_deb_unit_enabled: false
 llama_server_deb_unit_state: "stopped"
+
+# Radeon 680M (iGPU) は GTT 経由の大きな KV キャッシュ dispatch で
+# GPU compute ring timeout → DeviceLostError になる。
+# flash attention で attention 計算量を削減し、KV を q8_0 に量子化して
+# メモリ帯域を半減させることでタイムアウトを回避する。
+llama_server_deb_extra_env:
+  LLAMA_ARG_FLASH_ATTN: "1"
+  LLAMA_ARG_CACHE_TYPE_K: "q8_0"
+  LLAMA_ARG_CACHE_TYPE_V: "q8_0"
 
