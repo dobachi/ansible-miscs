@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: vnc_server
+  author: dobachi
+  description: >-
+    TigerVNC standalone server + Xfce4 を Ubuntu 26.04 で構成する。
+    Wayland-only な GNOME とは独立した Xvnc セッションを提供。
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - resolute   # 26.04
+  galaxy_tags:
+    - vnc
+    - tigervnc
+    - xfce
+    - remote_desktop
+
+dependencies: []

@@ -1,0 +1,13 @@
+#!/bin/sh
+# ~/.vnc/xstartup
+# Managed by Ansible role vnc_server. Do not edit by hand.
+#
+# Xvnc が ":N" を起動した直後に exec する起動スクリプト。
+# 物理セッション側 GNOME (Wayland) の env を引き継がないよう明示的にクリア。
+
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export XDG_SESSION_TYPE=x11
+export XKL_XMODMAP_DISABLE=1
+
+exec {{ vnc_server_xstartup_cmd }}

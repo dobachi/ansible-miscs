@@ -1,0 +1,13 @@
+# ~/.vnc/config
+# Managed by Ansible role vnc_server. Do not edit by hand.
+#
+# tigervncserver(1) が起動時に読む per-user config。
+# 設定可能なキーは tigervncserver --help / man tigervncserver を参照。
+
+session=xfce
+geometry={{ vnc_server_geometry }}
+depth={{ vnc_server_depth }}
+alwaysshared
+# TigerVNC は localhost 行が無いと localhost-only がデフォルトになる新しい版が
+# あるため、yes/no を明示する。
+localhost={{ "yes" if vnc_server_localhost_only else "no" }}

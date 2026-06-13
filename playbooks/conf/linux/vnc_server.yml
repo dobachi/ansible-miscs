@@ -1,0 +1,92 @@
+---
+# =====================================================================
+# TigerVNC standalone + Xfce4 を Tailscale 経由限定で構成する
+# =====================================================================
+#
+# このplaybookは何をするか
+# ------------------------
+# Ubuntu 26.04 で TigerVNC standalone server + Xfce4 を組合せ、Wayland 専用
+# の GNOME とは独立した Xvnc セッションを :1 (port 5901) に常駐させる。
+#
+# 詳細手順:
+#   1. tigervnc-standalone-server / -common / -tools と xfce4 を apt 導入
+#   2. ~/.vnc/{passwd,config,xstartup} を template
+#   3. /etc/tigervnc/vncserver.users に display:user マッピング追加
+#   4. ufw で 5901/tcp を Tailscale subnet (100.64.0.0/10) のみ許可
+#   5. tigervncserver@:1.service (system service テンプレート) を enable + start
+#
+# なぜ GNOME 共有 (RDP) ではなく VNC + 独立 Xfce か
+# ------------------------------------------------
+#   - GNOME Remote Desktop は 1 ユーザー 1 セッションの GDM 制約により、
+#     物理ログイン中の dobachi セッションと並走させづらい
+#   - 物理 HDMI 未接続時の RDP 利用には仮想 EDID (kernel cmdline) が必要だが、
+#     物理モニタ再接続時に縦横比を破壊する副作用がある
+#   - Xvnc は DRM connector を一切使わないため、物理ディスプレイの状態に
+#     完全に左右されない
+#
+# 必須変数 (Vault 強推奨)
+# -----------------------
+#   vnc_server_password : "{{ vault_vnc_password }}"
+#                          VNC 接続パスワード。**必ず ansible-vault で
+#                          暗号化** し、平文では書かないこと。
+#   vnc_server_user     : Xvnc を起動するユーザ (省略時 SUDO_USER)
+#
+# 任意変数 (デフォルトは roles/vnc_server/defaults/main.yml)
+# ---------------------------------------------------------
+#   vnc_server_display          : ":1"
+#   vnc_server_port             : 5901
+#   vnc_server_geometry         : "1920x1080"
+#   vnc_server_depth            : 24
+#   vnc_server_localhost_only   : false (true で SSH トンネル前提)
+#   vnc_server_xstartup_cmd     : "startxfce4"
+#   vnc_server_unit_enabled     : true
+#   vnc_server_unit_state       : "started"
+#
+# 事前準備
+# --------
+# 1) tailscale 構築済みであること (tailscale_client.yml / headscale_server.yml)
+# 2) パスワードを Vault 化 (host_vars 推奨):
+#      mkdir -p host_vars/k16
+#      ansible-vault encrypt_string 'StrongPassword' \
+#        --name 'vault_vnc_password' >> host_vars/k16/vault.yml
+#      cat >> host_vars/k16/main.yml <<EOF
+#      vnc_server_enable: true
+#      vnc_server_user: "dobachi"
+#      vnc_server_password: "{{ vault_vnc_password }}"
+#      EOF
+#
+# 実行例
+# ------
+#   ansible-playbook -i hosts playbooks/conf/linux/vnc_server.yml \
+#     -e server=k16 --ask-vault-pass
+#
+#   # パスワードだけローテーション
+#   ansible-playbook -i hosts playbooks/conf/linux/vnc_server.yml \
+#     -e server=k16 --ask-vault-pass \
+#     -e vnc_server_force_password_rewrite=true
+#
+# 接続側
+# ------
+# Linux:   Remmina (apt install remmina) または vncviewer
+# macOS:   標準の Screen Sharing (vnc://k16.<tailnet>.ts.net:5901)
+# Windows: TigerVNC Viewer
+#   ホスト: k16.<tailnet>.ts.net (Tailscale MagicDNS) または tailnet IP
+#   ポート: 5901
+#   パスワード: Vault 化した値
+#
+# 既存環境への影響
+# ----------------
+#   - SSH (22/tcp) はそのまま並行運用可能
+#   - gnome_screen_share (RDP) との衝突は無し (port が違う)。両方有効化も
+#     技術的には可能だが、本プロジェクトでは RDP は disable 推奨 (1 user
+#     1 GNOME セッション制約で並走しづらい)
+#   - 物理 GNOME セッションは無影響
+# =====================================================================
+
+- hosts: "{{ server | default('localhost') }}"
+  become: true
+
+  roles:
+    - vnc_server
+
+# vim: et ts=2 sw=2:

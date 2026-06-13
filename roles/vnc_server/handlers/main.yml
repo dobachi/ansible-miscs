@@ -1,0 +1,7 @@
+---
+- name: restart tigervnc
+  ansible.builtin.systemd:
+    name: "tigervncserver@{{ vnc_server_display }}.service"
+    state: restarted
+    daemon_reload: true
+  when: vnc_server_unit_state == "started"

@@ -1,0 +1,82 @@
+---
+# defaults file for roles/vnc_server
+#
+# Ubuntu 26.04 (resolute) で TigerVNC standalone server + Xfce4 を組み合わせ、
+# 物理ディスプレイと完全に独立したヘッドレス VNC デスクトップを提供する。
+#
+# 設計判断:
+#   - Ubuntu 26 の GNOME は Wayland のみで、X11 VNC では GNOME セッションを
+#     共有できない (gnome-remote-desktop 46+ も VNC を drop)。よって Xvnc 上
+#     に独立した Xfce4 デスクトップを立てる方式を採用。
+#   - Debian 同梱の tigervncserver@.service は **system service テンプレート**
+#     だが、/etc/tigervnc/vncserver.users で display:ユーザのマッピングを
+#     設定すれば指定ユーザ権限で Xvnc が起動する。linger 不要。
+#   - 物理ディスプレイ (DRM connector) の状態と完全に独立 → 物理 HDMI 接続/
+#     切断・kernel cmdline EDID の有無に左右されない。
+#   - Tailscale 経由限定 (ufw allow from Tailscale subnets) で生 VNC を運用。
+#     Tailscale が WireGuard で暗号化するため VNC over Tailscale は実用上 OK。
+
+# ロール本体を実行するかのスイッチ
+vnc_server_enable: false
+
+# パッケージ apt 導入
+vnc_server_install: true
+
+# ---- 配備対象ユーザ -------------------------------------------------
+# Xvnc を起動するユーザ。/etc/tigervnc/vncserver.users で display と対応付け。
+# 既定は playbook 実行時の SUDO_USER。
+vnc_server_user: "{{ ansible_facts.env.SUDO_USER | default(lookup('env', 'USER'), true) }}"
+
+# ---- ディスプレイ / ポート ------------------------------------------
+# Xvnc display 番号。port は 5900 + N。
+vnc_server_display: ":1"
+vnc_server_port: 5901
+
+# ---- 画面設定 -------------------------------------------------------
+vnc_server_geometry: "1920x1080"
+vnc_server_depth: 24
+
+# ---- バインド / セキュリティ ---------------------------------------
+# true: 127.0.0.1 にのみ listen (Tailscale 経由なら別マシンからのアクセス
+#       には SSH トンネルが必要)。
+# false: 0.0.0.0 で listen し、ufw で Tailscale subnet にだけ allow する。
+#        Tailscale の WireGuard で transport 暗号化されるためこちらでも OK。
+vnc_server_localhost_only: false
+
+# ---- VNC password (必須 / Vault 強推奨) -----------------------------
+# ansible-vault encrypt_string 'StrongPassword' \
+#   --name 'vault_vnc_password' >> host_vars/<host>/vault.yml
+# などで暗号化し、playbook 側で {{ vault_vnc_password }} を参照すること。
+# 平文で書かない。
+vnc_server_password: ""
+
+# ---- デスクトップ環境 ----------------------------------------------
+# Xvnc 上で起動する DE のパッケージ群と起動コマンド。
+# Xfce4 を既定にしている理由: Wayland 非依存、Xvnc との相性が広く実績があり、
+# Ubuntu 26 でもクリーンに動く。
+vnc_server_desktop_packages:
+  - xfce4
+  - xfce4-goodies
+  # gnome-remote-desktop の依存と被るが dbus-launch を Xvnc セッションで
+  # 使うため明示する。
+  - dbus-x11
+vnc_server_xstartup_cmd: "startxfce4"
+
+# ---- ファイアウォール (Tailscale 限定) ------------------------------
+vnc_server_open_firewall: true
+# Tailscale 公式 CGNAT レンジ (= tailscale_v4_prefix のデフォルトと一致)
+vnc_server_firewall_sources_v4:
+  - "100.64.0.0/10"
+vnc_server_firewall_sources_v6:
+  - "fd7a:115c:a1e0::/48"
+
+# ---- systemd unit 状態 ---------------------------------------------
+# tigervncserver@:N.service の enable / state。host_vars で
+#   vnc_server_unit_state: "stopped" / vnc_server_unit_enabled: false
+# にすれば設定は反映しつつサービスだけ休眠させられる。
+vnc_server_unit_enabled: true
+vnc_server_unit_state: "started"
+
+# パスワードを更新したい場合に true にすると ~/.vnc/passwd を強制再生成する
+# (既定は creates: で初回のみ作成、idempotent)。
+vnc_server_force_password_rewrite: false

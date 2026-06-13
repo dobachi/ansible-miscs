@@ -1,0 +1,148 @@
+---
+# tasks file for roles/vnc_server
+#
+# Ubuntu 26.04 (resolute) で TigerVNC standalone server を入れて、
+# Xfce4 セッションを Xvnc display :N 上に常駐させる。
+# サービスは /etc/tigervnc/vncserver.users で display と user を紐付け、
+# tigervncserver@:N.service (system service template) で管理する。
+
+- block:
+
+    - name: Install TigerVNC, Xfce4, dbus-x11
+      ansible.builtin.apt:
+        name: "{{ ['tigervnc-standalone-server', 'tigervnc-common', 'tigervnc-tools'] + vnc_server_desktop_packages }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: vnc_server_install | bool
+
+    - name: Validate vnc_server_password is set
+      ansible.builtin.assert:
+        that:
+          - vnc_server_password | length > 0
+        fail_msg: >-
+          vnc_server_password を設定してください (Vault 推奨)。
+          例: ansible-vault encrypt_string 'StrongPassword'
+                --name 'vault_vnc_password' >> host_vars/<host>/vault.yml
+
+    - name: Look up vnc_server_user home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ vnc_server_user }}"
+
+    - name: Set fact for vnc_server_user home
+      ansible.builtin.set_fact:
+        _vnc_user_home: "{{ getent_passwd[vnc_server_user][4] }}"
+
+    - name: Ensure ~/.vnc directory exists
+      ansible.builtin.file:
+        path: "{{ _vnc_user_home }}/.vnc"
+        state: directory
+        owner: "{{ vnc_server_user }}"
+        group: "{{ vnc_server_user }}"
+        mode: "0700"
+
+    # vncpasswd -f は stdin の平文パスワードを obfuscated DES 鍵に変換して
+    # stdout に書く。これを ~/.vnc/passwd に保存する。
+    # creates: で idempotent。回したい場合は vnc_server_force_password_rewrite=true。
+    - name: Remove existing ~/.vnc/passwd if force rewrite requested
+      ansible.builtin.file:
+        path: "{{ _vnc_user_home }}/.vnc/passwd"
+        state: absent
+      when: vnc_server_force_password_rewrite | bool
+
+    - name: Generate ~/.vnc/passwd via vncpasswd -f
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          printf '%s\n' "$VNC_PW" | vncpasswd -f > "$VNC_PW_FILE"
+        creates: "{{ _vnc_user_home }}/.vnc/passwd"
+      environment:
+        VNC_PW: "{{ vnc_server_password }}"
+        VNC_PW_FILE: "{{ _vnc_user_home }}/.vnc/passwd"
+      no_log: true
+
+    - name: Fix permissions on ~/.vnc/passwd
+      ansible.builtin.file:
+        path: "{{ _vnc_user_home }}/.vnc/passwd"
+        owner: "{{ vnc_server_user }}"
+        group: "{{ vnc_server_user }}"
+        mode: "0600"
+
+    - name: Template ~/.vnc/config
+      ansible.builtin.template:
+        src: vnc-config.j2
+        dest: "{{ _vnc_user_home }}/.vnc/config"
+        owner: "{{ vnc_server_user }}"
+        group: "{{ vnc_server_user }}"
+        mode: "0644"
+      notify: restart tigervnc
+
+    - name: Template ~/.vnc/xstartup
+      ansible.builtin.template:
+        src: xstartup.j2
+        dest: "{{ _vnc_user_home }}/.vnc/xstartup"
+        owner: "{{ vnc_server_user }}"
+        group: "{{ vnc_server_user }}"
+        mode: "0755"
+      notify: restart tigervnc
+
+    # /etc/tigervnc/vncserver.users で display:user マッピング。
+    # tigervncserver@:N.service が起動時にこれを読み、対象ユーザ権限で
+    # Xvnc を起動する。
+    - name: Configure /etc/tigervnc/vncserver.users mapping
+      ansible.builtin.lineinfile:
+        path: /etc/tigervnc/vncserver.users
+        regexp: "^{{ vnc_server_display | regex_escape }}="
+        line: "{{ vnc_server_display }}={{ vnc_server_user }}"
+        create: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart tigervnc
+
+    - name: Open VNC port from Tailscale IPv4 subnets via ufw
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        to_port: "{{ vnc_server_port | string }}"
+        proto: tcp
+        comment: "TigerVNC via Tailscale (v4)"
+      loop: "{{ vnc_server_firewall_sources_v4 }}"
+      when: vnc_server_open_firewall | bool
+
+    - name: Open VNC port from Tailscale IPv6 subnets via ufw
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        to_port: "{{ vnc_server_port | string }}"
+        proto: tcp
+        comment: "TigerVNC via Tailscale (v6)"
+      loop: "{{ vnc_server_firewall_sources_v6 }}"
+      when: vnc_server_open_firewall | bool
+
+    - name: Apply systemd unit state for tigervncserver@{{ vnc_server_display }}.service
+      ansible.builtin.systemd:
+        name: "tigervncserver@{{ vnc_server_display }}.service"
+        enabled: "{{ vnc_server_unit_enabled | bool }}"
+        state: "{{ vnc_server_unit_state }}"
+        daemon_reload: true
+
+    - name: Show tigervncserver status (for visibility)
+      ansible.builtin.command:
+        cmd: "systemctl status tigervncserver@{{ vnc_server_display }}.service --no-pager -n 5"
+      register: _vnc_status
+      changed_when: false
+      failed_when: false
+
+    - name: tigervncserver status output
+      ansible.builtin.debug:
+        msg: "{{ _vnc_status.stdout_lines }}"
+
+  tags:
+    - vnc_server
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - vnc_server_enable | bool
+
+# vim: set et ts=2 sw=2:
