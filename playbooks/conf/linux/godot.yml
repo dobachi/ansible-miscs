@@ -1,0 +1,6 @@
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    # register_home / commons は godot ロールの meta 依存として自動実行される。
+    - godot
+
+# vim: et ts=2 sw=2:

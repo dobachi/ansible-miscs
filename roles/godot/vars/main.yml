@@ -1,0 +1,9 @@
+---
+# vars file for roles/godot
+
+# ダウンロードする zip / 展開後の実行ファイル名 (バージョン・アーキ依存)。
+godot_zip: "Godot_v{{ godot_version }}_{{ godot_arch }}.zip"
+godot_exe: "Godot_v{{ godot_version }}_{{ godot_arch }}"
+
+# バージョン別の展開ディレクトリ。
+godot_version_dir: "{{ godot_home }}/{{ godot_version }}"

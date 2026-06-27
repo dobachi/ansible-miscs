@@ -1,0 +1,16 @@
+---
+# defaults file for roles/godot
+
+# Godot のリリースタグ。最新版は https://github.com/godotengine/godot/releases を参照。
+godot_version: "4.7-stable"
+
+# アーティファクトのプラットフォーム種別。標準版 (GDScript) を採用。
+# .NET/Mono 版 (C#) を使う場合は別ロールまたは godot_mono を実装すること。
+godot_arch: "linux.x86_64"
+
+# 展開先ベースディレクトリ (llmacpp ロールと同じ ~/Applications 配下)。
+godot_home: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/Applications/godot"
+
+# デスクトップエントリ (アプリ一覧 / WSLg) を作成する。
+# PATH からの起動は alternatives が ~/.local/bin/godot を張るため常に有効。
+godot_create_desktop_entry: true

@@ -1,0 +1,17 @@
+galaxy_info:
+  author: dobachi
+  description: Install the Godot Engine (standard build) from the official GitHub releases
+  license: MIT
+
+  min_ansible_version: 2.1
+
+  galaxy_tags:
+    - godot
+    - gamedev
+    - editor
+
+dependencies:
+  # register_home が ansible_home を set_fact し、commons がそれを参照する。
+  # 順序が重要なので register_home -> commons の順に並べる。
+  - role: register_home
+  - role: commons

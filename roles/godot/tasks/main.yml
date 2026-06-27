@@ -1,0 +1,77 @@
+---
+# tasks file for roles/godot
+
+- block:
+  # Skip download / unarchive entirely when this version is already extracted.
+  # Bumping godot_version is what triggers a fresh install on the next run.
+  - name: check_existing_godot_extraction
+    stat:
+      path: "{{ godot_version_dir }}/{{ godot_exe }}"
+    register: godot_extracted
+
+  - name: install unzip (required to extract the Godot archive)
+    package:
+      name: unzip
+      state: present
+    become: yes
+    when: not godot_extracted.stat.exists
+
+  - name: mkdir Applications/godot/<version>
+    file:
+      path: "{{ godot_version_dir }}"
+      state: directory
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+    when: not godot_extracted.stat.exists
+
+  - name: download Godot {{ godot_version }}
+    get_url:
+      url: "https://github.com/godotengine/godot/releases/download/{{ godot_version }}/{{ godot_zip }}"
+      dest: "{{ godot_version_dir }}/{{ godot_zip }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      timeout: 300
+    when: not godot_extracted.stat.exists
+
+  - name: unarchive Godot
+    unarchive:
+      src: "{{ godot_version_dir }}/{{ godot_zip }}"
+      dest: "{{ godot_version_dir }}/"
+      remote_src: yes
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      creates: "{{ godot_version_dir }}/{{ godot_exe }}"
+    when: not godot_extracted.stat.exists
+
+  - name: ensure Godot binary is executable
+    file:
+      path: "{{ godot_version_dir }}/{{ godot_exe }}"
+      mode: "0755"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+  - name: configure_alternatives
+    alternatives:
+      name: godot
+      path: "{{ godot_version_dir }}/{{ godot_exe }}"
+      link: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/.local/bin/godot"
+
+  - name: mkdir ~/.local/share/applications
+    file:
+      path: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/.local/share/applications"
+      state: directory
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+    when: godot_create_desktop_entry
+
+  - name: install desktop entry (app launcher / WSLg)
+    template:
+      src: godot.desktop.j2
+      dest: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/.local/share/applications/godot.desktop"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      mode: "0644"
+    when: godot_create_desktop_entry
+
+  tags:
+    - godot
