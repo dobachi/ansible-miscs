@@ -1,0 +1,17 @@
+galaxy_info:
+  author: dobachi
+  description: Install the Antigravity CLI (agy) from the official GitHub releases
+  license: MIT
+
+  min_ansible_version: 2.1
+
+  galaxy_tags:
+    - antigravity
+    - cli
+    - ai
+
+dependencies:
+  # register_home が ansible_home を set_fact し、commons がそれを参照する。
+  # 順序が重要なので register_home -> commons の順に並べる (godot ロールと同じ)。
+  - role: register_home
+  - role: commons

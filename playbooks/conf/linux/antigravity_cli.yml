@@ -1,0 +1,13 @@
+---
+# Antigravity CLI (agy) を公式 GitHub リリースの tar.gz から導入する。
+#
+# 実行例 (プロセス全体を sudo で起動する点に注意):
+#   sudo ansible-playbook -i hosts playbooks/conf/linux/antigravity_cli.yml
+#   sudo ansible-playbook -i hosts playbooks/conf/linux/antigravity_cli.yml -e server=k16
+
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    # register_home / commons は antigravity_cli ロールの meta 依存として自動実行される。
+    - antigravity_cli
+
+# vim: et ts=2 sw=2:

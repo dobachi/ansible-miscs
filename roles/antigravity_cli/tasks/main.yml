@@ -1,0 +1,57 @@
+---
+# tasks file for roles/antigravity_cli
+#
+# Antigravity CLI (agy) を公式 GitHub リリースの tar.gz から導入する。
+# godot ロールと同じ流儀: ~/Applications/antigravity-cli/<version>/ に展開し、
+# alternatives で ~/.local/bin/agy を選択中バージョンのバイナリに向ける。
+
+- block:
+  # Skip download / unarchive entirely when this version is already extracted.
+  # Bumping antigravity_cli_version triggers a fresh install on the next run.
+  - name: check_existing_antigravity_cli_extraction
+    stat:
+      path: "{{ antigravity_cli_version_dir }}/{{ antigravity_cli_exe }}"
+    register: antigravity_cli_extracted
+
+  - name: mkdir Applications/antigravity-cli/<version>
+    file:
+      path: "{{ antigravity_cli_version_dir }}"
+      state: directory
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+    when: not antigravity_cli_extracted.stat.exists
+
+  - name: download Antigravity CLI {{ antigravity_cli_version }}
+    get_url:
+      url: "https://github.com/google-antigravity/antigravity-cli/releases/download/{{ antigravity_cli_version }}/{{ antigravity_cli_tar }}"
+      dest: "{{ antigravity_cli_version_dir }}/{{ antigravity_cli_tar }}"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      timeout: 300
+    when: not antigravity_cli_extracted.stat.exists
+
+  - name: unarchive Antigravity CLI
+    unarchive:
+      src: "{{ antigravity_cli_version_dir }}/{{ antigravity_cli_tar }}"
+      dest: "{{ antigravity_cli_version_dir }}/"
+      remote_src: yes
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      creates: "{{ antigravity_cli_version_dir }}/{{ antigravity_cli_exe }}"
+    when: not antigravity_cli_extracted.stat.exists
+
+  - name: ensure Antigravity CLI binary is executable
+    file:
+      path: "{{ antigravity_cli_version_dir }}/{{ antigravity_cli_exe }}"
+      mode: "0755"
+      owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      group: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+  - name: configure_alternatives
+    alternatives:
+      name: "{{ antigravity_cli_command }}"
+      path: "{{ antigravity_cli_version_dir }}/{{ antigravity_cli_exe }}"
+      link: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/.local/bin/{{ antigravity_cli_command }}"
+
+  tags:
+    - antigravity_cli

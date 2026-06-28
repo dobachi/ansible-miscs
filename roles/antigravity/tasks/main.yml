@@ -1,0 +1,65 @@
+---
+# tasks file for roles/antigravity
+#
+# Google Antigravity 公式 (antigravity.google/download/linux) の Debian/Ubuntu 用
+# apt install 手順を Ansible に落とし込んだもの。docker ロールと同じ構成:
+#   keyring 配置 -> signed-by で repo 追加 -> apt install。
+
+- block:
+
+    - name: Assert running on a Debian-family distro (本ロールは apt 前提)
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == "Debian"
+        fail_msg: >-
+          roles/antigravity は Debian/Ubuntu (apt) 専用です
+          (現: {{ ansible_facts['distribution'] }} / {{ ansible_facts['os_family'] }})。
+
+    - name: Install prerequisites for apt-over-HTTPS and keyring handling
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+
+    - name: Ensure /etc/apt/keyrings exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    # 公式鍵は ASCII armored なので一旦 .asc で取得し、dearmor して .gpg を作る。
+    # dearmor 済みの .gpg が無いときだけ変換する (べき等)。
+    - name: Download Antigravity apt repository signing key (armored)
+      ansible.builtin.get_url:
+        url: "{{ antigravity_keyring_url }}"
+        dest: "{{ antigravity_keyring_path }}.asc"
+        mode: "0644"
+        force: false
+
+    - name: Dearmor Antigravity signing key into keyring
+      ansible.builtin.command:
+        cmd: "gpg --batch --yes --dearmor -o {{ antigravity_keyring_path }} {{ antigravity_keyring_path }}.asc"
+        creates: "{{ antigravity_keyring_path }}"
+
+    - name: Add Antigravity apt repository (signed-by)
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ antigravity_repo_arch }}
+          signed-by={{ antigravity_keyring_path }}]
+          {{ antigravity_repo_url }}
+          {{ antigravity_repo_suite }} {{ antigravity_repo_component }}
+        filename: antigravity
+        state: present
+        update_cache: true
+
+    - name: Install Antigravity
+      ansible.builtin.apt:
+        name: "{{ antigravity_package }}"
+        state: "{{ antigravity_state }}"
+
+  tags:
+    - antigravity

@@ -1,0 +1,11 @@
+---
+# vars file for roles/antigravity_cli
+
+# ダウンロードする tar.gz (バージョン・アーキ依存)。
+antigravity_cli_tar: "agy_cli_{{ antigravity_cli_arch }}.tar.gz"
+
+# tarball 内の実行ファイル名 (実体は antigravity という単一バイナリ)。
+antigravity_cli_exe: "antigravity"
+
+# バージョン別の展開ディレクトリ。
+antigravity_cli_version_dir: "{{ antigravity_cli_home }}/{{ antigravity_cli_version }}"

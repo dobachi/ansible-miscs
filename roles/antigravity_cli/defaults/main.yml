@@ -1,0 +1,18 @@
+---
+# defaults file for roles/antigravity_cli
+
+# Antigravity CLI のリリースタグ。最新版は
+# https://github.com/google-antigravity/antigravity-cli/releases を参照。
+antigravity_cli_version: "1.0.13"
+
+# リリースアセットのアーキ種別トークン (asset 名: agy_cli_<arch>.tar.gz)。
+#   x86_64  -> linux_x64
+#   aarch64 -> linux_arm64
+antigravity_cli_arch: "linux_x64"
+
+# 展開先ベースディレクトリ (godot / llmacpp ロールと同じ ~/Applications 配下)。
+antigravity_cli_home: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/Applications/antigravity-cli"
+
+# PATH に張るコマンド名。公式ドキュメントでは `agy` で起動する
+# (tarball 内のバイナリ実体名は antigravity だが alternatives で agy を張る)。
+antigravity_cli_command: "agy"

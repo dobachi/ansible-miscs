@@ -1,0 +1,15 @@
+---
+# Google Antigravity (agentic IDE) を公式 APT リポジトリから導入する。
+#
+# 実行例:
+#   sudo ansible-playbook -i hosts playbooks/conf/linux/antigravity.yml
+#   sudo ansible-playbook -i hosts playbooks/conf/linux/antigravity.yml -e server=k16
+#
+# Debian/Ubuntu (apt) 専用。x86_64 のみ。
+
+- hosts: "{{ server | default('wsl') }}"
+  become: true
+  roles:
+    - antigravity
+
+# vim: et ts=2 sw=2:

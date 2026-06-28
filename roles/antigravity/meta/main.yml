@@ -1,0 +1,20 @@
+galaxy_info:
+  author: dobachi
+  description: Install Google Antigravity (agentic IDE) from the official APT repository
+  license: MIT
+
+  min_ansible_version: "2.9"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+    - name: Debian
+
+  galaxy_tags:
+    - antigravity
+    - ide
+    - ai
+
+dependencies: []

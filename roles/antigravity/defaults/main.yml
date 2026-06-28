@@ -1,0 +1,27 @@
+---
+# defaults file for roles/antigravity
+#
+# Google Antigravity (agentic IDE) を公式 APT リポジトリから導入する。
+# 公式手順: https://antigravity.google/download/linux
+#   - /etc/apt/keyrings/antigravity-repo-key.gpg に署名鍵を配置 (dearmor)
+#   - us-central1-apt.pkg.dev の auto-updater リポジトリを signed-by で追加
+#   - apt で antigravity パッケージを導入 (以後 apt upgrade で自動更新)
+# docker ロールと同じ「公式 apt 手順を Ansible 化」の流儀。
+
+# 入れるパッケージ名 (公式リポジトリ)。
+antigravity_package: antigravity
+
+# パッケージの状態。最新へ追従したいなら latest、固定したいなら present。
+antigravity_state: present
+
+# 署名鍵 (ASCII armored) の取得元と、dearmor 後の配置先 (公式手順準拠)。
+antigravity_keyring_url: https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg
+antigravity_keyring_path: /etc/apt/keyrings/antigravity-repo-key.gpg
+
+# apt リポジトリ。公式の auto-updater 用エンドポイント。
+antigravity_repo_url: https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/
+antigravity_repo_suite: antigravity-debian
+antigravity_repo_component: main
+
+# リポジトリの arch 指定。Antigravity は x86_64 (amd64) のみ提供。
+antigravity_repo_arch: amd64
