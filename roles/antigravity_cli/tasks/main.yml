@@ -55,3 +55,81 @@
 
   tags:
     - antigravity_cli
+
+# --- MCP server: Claude Code (など MCP クライアント) から agy を使えるようにする ---
+# antigravity-cli-mcp (Bun 必須) を bun add -g で導入し、Claude Code の
+# ~/.claude.json に mcpServers エントリを冪等にマージ登録する。
+- name: set up agy MCP server for Claude Code (antigravity-cli-mcp via Bun)
+  when: antigravity_cli_mcp_enable | bool
+  tags:
+    - antigravity_cli
+    - antigravity_cli_mcp
+  block:
+    # antigravity-cli-mcp は Bun.spawn / Bun.write を使うため Bun ランタイムが要る。
+    - name: ensure Bun runtime is installed
+      ansible.builtin.include_role:
+        name: bun
+
+    - name: set fact for the target user home
+      ansible.builtin.set_fact:
+        antigravity_cli_user_home: "/home/{{ ansible_facts['env']['SUDO_USER'] }}"
+
+    # bun add -g で ~/.bun/bin/<pkg> に実行可能 shim が張られる (creates でべき等)。
+    - name: install antigravity-cli-mcp globally with Bun
+      become: true
+      become_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+      ansible.builtin.shell: |
+        set -o pipefail
+        "{{ antigravity_cli_user_home }}/.bun/bin/bun" add -g {{ antigravity_cli_mcp_package }}
+      args:
+        executable: /bin/bash
+        creates: "{{ antigravity_cli_user_home }}/.bun/bin/{{ antigravity_cli_mcp_package }}"
+      environment:
+        HOME: "{{ antigravity_cli_user_home }}"
+        PATH: "{{ antigravity_cli_user_home }}/.bun/bin:{{ ansible_env.PATH }}"
+
+    - name: register antigravity-cli-mcp in Claude Code (~/.claude.json mcpServers)
+      when: antigravity_cli_mcp_register_claude | bool
+      block:
+        # 既存の ~/.claude.json は会話履歴・他 MCP 等を含むため、全体を読み込んで
+        # mcpServers だけマージし直す。未作成/空のときは空オブジェクトから組む。
+        - name: read existing Claude Code config
+          ansible.builtin.slurp:
+            path: "{{ antigravity_cli_mcp_claude_config }}"
+          register: antigravity_cli_claude_raw
+          failed_when: false
+
+        - name: parse existing Claude Code config
+          ansible.builtin.set_fact:
+            antigravity_cli_claude_existing: >-
+              {{ (antigravity_cli_claude_raw.content | b64decode | from_json)
+                 if (antigravity_cli_claude_raw.content is defined
+                     and (antigravity_cli_claude_raw.content | b64decode | trim) != '')
+                 else {} }}
+
+        - name: build antigravity-cli-mcp server definition
+          ansible.builtin.set_fact:
+            antigravity_cli_mcp_def:
+              type: stdio
+              command: "{{ antigravity_cli_user_home }}/.bun/bin/{{ antigravity_cli_mcp_package }}"
+              args: []
+              env:
+                AGY_PATH: "{{ antigravity_cli_mcp_agy_bin }}"
+                AGY_TIMEOUT_MS: "{{ antigravity_cli_mcp_timeout_ms | string }}"
+
+        - name: merge agy into mcpServers (他の設定は保持)
+          ansible.builtin.set_fact:
+            antigravity_cli_claude_merged: >-
+              {{ antigravity_cli_claude_existing | combine({
+                   'mcpServers': (antigravity_cli_claude_existing.mcpServers | default({}))
+                                 | combine({antigravity_cli_mcp_server_name:
+                                            antigravity_cli_mcp_def})
+                 }, recursive=True) }}
+
+        - name: write back Claude Code config
+          ansible.builtin.copy:
+            content: "{{ antigravity_cli_claude_merged | to_nice_json }}\n"
+            dest: "{{ antigravity_cli_mcp_claude_config }}"
+            mode: "0644"
+            owner: "{{ ansible_facts['env']['SUDO_USER'] }}"
+            group: "{{ ansible_facts['env']['SUDO_USER'] }}"

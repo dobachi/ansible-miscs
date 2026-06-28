@@ -1,0 +1,59 @@
+---
+# tasks file for roles/bun
+#
+# Bun ランタイムを per-user で導入する (pyenv ロールと同じ流儀:
+# become_user で対象ユーザーになり、公式インストーラを creates でべき等化、
+# PATH を .bashrc に通す)。インストール先は ~/.bun。
+
+- block:
+
+  - name: register home of bun_user
+    become: true
+    become_user: "{{ bun_user }}"
+    ansible.builtin.shell: echo $HOME
+    register: bun_home_dir
+    changed_when: false
+
+  # 公式インストーラは展開に unzip を使うため先に入れておく。
+  # apt cache 更新は壊れたサードパーティ repo があると失敗するので best-effort
+  # (失敗しても続行)。curl/unzip が既にあれば下の install は no-op で済む。
+  - name: update apt cache (best-effort)
+    ansible.builtin.apt:
+      update_cache: true
+      cache_valid_time: 3600
+    failed_when: false
+    changed_when: false
+
+  - name: install prerequisites for the Bun installer
+    ansible.builtin.apt:
+      name:
+        - curl
+        - unzip
+      state: present
+
+  - name: install Bun (per-user, idempotent via creates)
+    become: true
+    become_user: "{{ bun_user }}"
+    ansible.builtin.shell: |
+      set -o pipefail
+      curl -fsSL {{ bun_install_url }} | bash
+    args:
+      executable: /bin/bash
+      creates: "{{ bun_home_dir.stdout }}/.bun/bin/bun"
+    environment:
+      HOME: "{{ bun_home_dir.stdout }}"
+
+  - name: add Bun to PATH in .bashrc
+    become: true
+    become_user: "{{ bun_user }}"
+    ansible.builtin.lineinfile:
+      path: "{{ bun_home_dir.stdout }}/.bashrc"
+      line: "{{ item }}"
+      create: true
+    with_items:
+      - 'export BUN_INSTALL="$HOME/.bun"'
+      - 'export PATH="$BUN_INSTALL/bin:$PATH"'
+    when: bun_configure_bashrc | bool
+
+  tags:
+    - bun

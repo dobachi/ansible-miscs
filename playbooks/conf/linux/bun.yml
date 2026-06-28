@@ -1,0 +1,12 @@
+---
+# Bun ランタイムを per-user で導入する。
+#
+# 実行例 (プロセス全体を sudo で起動する点に注意):
+#   sudo ansible-playbook -i hosts playbooks/conf/linux/bun.yml
+#   sudo ansible-playbook -i hosts playbooks/conf/linux/bun.yml -e server=k16
+
+- hosts: "{{ server | default('wsl') }}"
+  roles:
+    - bun
+
+# vim: et ts=2 sw=2:

@@ -16,3 +16,29 @@ antigravity_cli_home: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/Application
 # PATH に張るコマンド名。公式ドキュメントでは `agy` で起動する
 # (tarball 内のバイナリ実体名は antigravity だが alternatives で agy を張る)。
 antigravity_cli_command: "agy"
+
+# --- MCP server (Claude Code など他 MCP クライアントから agy を使わせる) -------
+# Antigravity CLI 自体には「自分を MCP サーバとして公開する」機能が無い
+# (agy は MCP クライアント側)。そこでサードパーティの antigravity-cli-mcp
+# (npm / Bun ランタイム必須。Bun.spawn・Bun.write を使うため node では動かない) を
+# `bun add -g` で導入し、Claude Code のユーザースコープ設定 (~/.claude.json の
+# mcpServers) に登録する。公開ツール: ping / ask-agy / search-web / write-file。
+# 既存の gemini-cli (@tuannvm/gemini-mcp-server) / codex と同じ「CLI を MCP で
+# ラップ」する構図。Bun は roles/bun を include_role して用意する。
+antigravity_cli_mcp_enable: true
+
+# 導入する npm パッケージ名。
+antigravity_cli_mcp_package: "antigravity-cli-mcp"
+
+# Claude Code の mcpServers に登録するサーバ名 (gemini-cli / codex と並ぶ)。
+antigravity_cli_mcp_server_name: "agy"
+
+# Claude Code 設定への登録を行うか / 登録先 (sudo 元ユーザーのユーザースコープ)。
+antigravity_cli_mcp_register_claude: true
+antigravity_cli_mcp_claude_config: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/.claude.json"
+
+# MCP サーバが叩く agy バイナリ (AGY_PATH に渡す。alternatives で張った ~/.local/bin/agy)。
+antigravity_cli_mcp_agy_bin: "/home/{{ ansible_facts['env']['SUDO_USER'] }}/.local/bin/{{ antigravity_cli_command }}"
+
+# ask-agy 1 回あたりのタイムアウト (ms)。agy 既定の待ち時間 (5 分) に合わせる。
+antigravity_cli_mcp_timeout_ms: 300000

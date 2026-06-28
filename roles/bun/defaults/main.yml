@@ -1,0 +1,11 @@
+---
+# defaults file for roles/bun
+
+# Bun を入れる対象ユーザー (per-user インストール。既定は sudo 元ユーザー)。
+bun_user: "{{ ansible_facts['env']['SUDO_USER'] }}"
+
+# 公式インストーラ (curl | bash で ~/.bun に展開する)。
+bun_install_url: "https://bun.sh/install"
+
+# .bashrc に BUN_INSTALL / PATH を追記するか。
+bun_configure_bashrc: true

@@ -27,9 +27,36 @@ Role Variables
 | `antigravity_cli_arch` | `linux_x64` | アセットのアーキ種別。arm64 は `linux_arm64` |
 | `antigravity_cli_home` | `~/Applications/antigravity-cli` | 展開先ベース（SUDO_USER のホーム配下） |
 | `antigravity_cli_command` | `agy` | PATH に張るコマンド名 |
+| `antigravity_cli_mcp_enable` | `true` | Claude Code 等から agy を MCP 経由で使えるようにするか |
+| `antigravity_cli_mcp_package` | `antigravity-cli-mcp` | 導入する npm パッケージ (Bun 必須) |
+| `antigravity_cli_mcp_server_name` | `agy` | `~/.claude.json` の mcpServers に登録する名前 |
+| `antigravity_cli_mcp_register_claude` | `true` | `~/.claude.json` への登録を行うか |
+| `antigravity_cli_mcp_claude_config` | `~/.claude.json` | 登録先 (SUDO_USER のユーザースコープ) |
+| `antigravity_cli_mcp_agy_bin` | `~/.local/bin/agy` | MCP サーバが叩く agy バイナリ (`AGY_PATH`) |
+| `antigravity_cli_mcp_timeout_ms` | `300000` | ask-agy 1 回のタイムアウト (ms) |
 
 別バージョンを入れる場合は `-e antigravity_cli_version=1.0.12` のように上書きする。
 `alternatives` により `~/.local/bin/agy` のリンク先が切り替わり、複数バージョンを共存できる。
+
+MCP サーバ (Claude Code から agy を使う)
+----------------------------------------
+
+Antigravity CLI 自体には「自分を MCP サーバとして公開する」機能が無い (agy は MCP
+*クライアント* 側)。そのため本ロールは `antigravity_cli_mcp_enable: true` (既定) の
+とき、サードパーティの [`antigravity-cli-mcp`](https://www.npmjs.com/package/antigravity-cli-mcp)
+を **Bun** (`roles/bun` を `include_role`) で `bun add -g` 導入し、Claude Code の
+ユーザースコープ設定 `~/.claude.json` の `mcpServers` に `agy` として登録する。
+
+- 公開ツール: `ping` / `ask-agy` / `search-web` / `write-file`
+- パッケージは `Bun.spawn` / `Bun.write` を使うため node では動かず Bun が要る
+  (既存の gemini-cli / codex は npx なのと違い、ここだけ Bun ランタイムを足す)。
+- 登録は既存の `mcpServers` をマージで保存するので、gemini-cli / codex 等の
+  既存エントリは消えない。
+- MCP を入れたくない場合は `-e antigravity_cli_mcp_enable=false`。
+
+反映後、**Claude Code を再起動**すると `agy` MCP サーバが現れ、`/mcp` で確認できる。
+agy の認証 (`~/.gemini/antigravity-cli` の OAuth トークン) は事前に `agy` を一度
+起動してログインしておくこと。
 
 Example Playbook
 ----------------
