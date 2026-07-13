@@ -17,8 +17,19 @@ set -euo pipefail
 
 CONTAINER_NAME="${HERMES_CONTAINER:-{{ hermes_agent_container_name }}}"
 
-if ! docker ps --filter "name=^${CONTAINER_NAME}$" --format '{{ "{{" }}.Names{{ "}}" }}' \
-    | grep -qx "${CONTAINER_NAME}"; then
+_ps_out="$(docker ps --filter "name=^${CONTAINER_NAME}$" --format '{{ "{{" }}.Names{{ "}}" }}' 2>&1)"
+_ps_rc=$?
+if [[ $_ps_rc -ne 0 ]]; then
+  if [[ "$_ps_out" == *"permission denied"* ]]; then
+    echo "error: current shell cannot talk to Docker daemon (permission denied on docker.sock)" >&2
+    echo "fix  : 'newgrp docker' in this terminal, or fully log out and log back in." >&2
+    exit 2
+  fi
+  echo "error: 'docker ps' failed:" >&2
+  echo "$_ps_out" >&2
+  exit $_ps_rc
+fi
+if ! grep -qx "${CONTAINER_NAME}" <<<"$_ps_out"; then
   echo "error: gateway container '${CONTAINER_NAME}' is not running" >&2
   echo "hint: sudo systemctl start {{ hermes_agent_systemd_unit_name }}" >&2
   exit 1

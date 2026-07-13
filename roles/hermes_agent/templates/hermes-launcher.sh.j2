@@ -15,9 +15,24 @@ set -euo pipefail
 
 CONTAINER_NAME="${HERMES_CONTAINER:-{{ hermes_agent_container_name }}}"
 
-# container が動いているか確認 (^name$ で完全一致)
-if ! docker ps --filter "name=^${CONTAINER_NAME}$" --format '{{ "{{" }}.Names{{ "}}" }}' \
-    | grep -qx "${CONTAINER_NAME}"; then
+# container 状態確認。docker daemon への接続失敗と「container が居ない」は
+# ユーザーへの対処が違うので分けて診断する。
+_ps_out="$(docker ps --filter "name=^${CONTAINER_NAME}$" --format '{{ "{{" }}.Names{{ "}}" }}' 2>&1)"
+_ps_rc=$?
+if [[ $_ps_rc -ne 0 ]]; then
+  if [[ "$_ps_out" == *"permission denied"* ]]; then
+    echo "error: current shell cannot talk to Docker daemon (permission denied on docker.sock)" >&2
+    echo "cause: this login session's supplementary groups were cached BEFORE you were added to" >&2
+    echo "       the docker group. GNOME/GDM sessions only refresh groups at login time." >&2
+    echo "fix  : run 'newgrp docker' in this terminal (this shell only), OR fully log out and log" >&2
+    echo "       back in (recommended, applies to all future terminals)." >&2
+    exit 2
+  fi
+  echo "error: 'docker ps' failed:" >&2
+  echo "$_ps_out" >&2
+  exit $_ps_rc
+fi
+if ! grep -qx "${CONTAINER_NAME}" <<<"$_ps_out"; then
   echo "error: gateway container '${CONTAINER_NAME}' is not running" >&2
   echo "hint: sudo systemctl start {{ hermes_agent_systemd_unit_name }}" >&2
   echo "      sudo systemctl status {{ hermes_agent_systemd_unit_name }}" >&2
