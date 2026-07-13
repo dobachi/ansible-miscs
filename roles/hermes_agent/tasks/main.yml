@@ -33,6 +33,14 @@
           {{ hermes_agent_workspace
              | regex_replace('^~', _hermes_agent_home) }}
 
+    # workspace が ~/.hermes 配下 (default) なら bind mount は不要
+    # (container の ~/.hermes:/opt/data マウント経由で自動的に見える)。
+    # それ以外の場合は /opt/data/workspace を上書き mount する必要あり。
+    - name: Determine whether workspace needs its own bind mount
+      ansible.builtin.set_fact:
+        _hermes_agent_workspace_needs_bind: >-
+          {{ not _hermes_agent_workspace.startswith(_hermes_agent_home + '/.hermes/') }}
+
     - name: Expand ~ in hermes_agent_launcher_dir
       ansible.builtin.set_fact:
         _hermes_agent_launcher_dir: >-

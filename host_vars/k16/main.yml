@@ -58,8 +58,10 @@ docker_users: ["dobachi"]
 hermes_agent_openrouter_model: "anthropic/claude-sonnet-4.5"
 hermes_agent_openrouter_api_key: "{{ vault_hermes_openrouter_api_key }}"
 
-# 触らせるディレクトリ (default のままでよい場合はこの行不要)
-# hermes_agent_workspace: "~/hermes-workspace"
+# 触らせるディレクトリ (default: ~/.hermes/workspace)。
+# HERMES_HOME 配下に統合しているので dashboard から可視化される。
+# 別ディレクトリに分離したい場合は host_vars で "~/hermes-workspace" 等に上書き。
+# hermes_agent_workspace: "~/.hermes/workspace"
 # 初期化しておきたいサブディレクトリ (作業カテゴリ分けする場合)
 # hermes_agent_workspace_subdirs: [projects, sandbox, scratch]
 

@@ -19,7 +19,7 @@
 #              └─ hermes CLI (docker exec で attach)
 #
 #   [Host bind mounts]
-#     ~/hermes-workspace  → /workspace  (WORKDIR, 触らせたいファイル置き場)
+#     ~/.hermes/workspace  → /workspace  (WORKDIR, 触らせたいファイル置き場)
 #     ~/.hermes           → /opt/data   (config, .env, skills, memories, sessions)
 #
 #   [Host wrappers ~/.local/bin/]
@@ -50,7 +50,7 @@
 #   2. サービス起動確認: `systemctl status hermes-gateway`
 #   3. 動作確認         : `hermes doctor`
 #   4. 触らせたいファイルを workspace に置く:
-#      git clone <url> ~/hermes-workspace/some-repo
+#      git clone <url> ~/.hermes/workspace/some-repo
 #   5. 対話開始         : `hermes`
 #   6. container 内 shell: `hermes-shell` (デバッグ / 検査用)
 # =====================================================================

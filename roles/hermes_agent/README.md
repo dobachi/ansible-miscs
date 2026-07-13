@@ -16,7 +16,7 @@ Nous Research の [Hermes Agent](https://hermes-agent.nousresearch.com/) を
            └─ hermes CLI (docker exec で attach)
 
 [Host bind mounts]
-  ~/hermes-workspace  → /workspace   (WORKDIR)
+  ~/.hermes            → /opt/data    (HERMES_HOME、workspace サブディレクトリを含む)
   ~/.hermes           → /opt/data    (config, .env, skills, memories, sessions)
 
 [Host wrappers ~/.local/bin/]
@@ -30,7 +30,7 @@ Nous Research の [Hermes Agent](https://hermes-agent.nousresearch.com/) を
   外を触れない (rootfs は image layer で immutable、他 host FS は container
   から不可視)。
 - `$HOME/.ssh` や `/etc/passwd` などは container 側から**存在しない**扱い。
-- 触らせたいファイルは `~/hermes-workspace/` にコピー / clone してから使う。
+- 触らせたいファイルは `~/.hermes/workspace/` にコピー / clone してから使う。
 
 ## Self-improvement との関係
 
@@ -64,7 +64,7 @@ Hermes の売りである「自己成長」(skills 生成、memory 更新、cura
 | `hermes_agent_user` | 実行ユーザー | 対象ユーザー (~/.hermes / workspace 所有者) |
 | `hermes_agent_image` | `nousresearch/hermes-agent:latest` | 公式 image |
 | `hermes_agent_container_name` | `hermes` | 常駐 container の名前 |
-| `hermes_agent_workspace` | `~/hermes-workspace` | container の `/workspace` に bind mount する host ディレクトリ |
+| `hermes_agent_workspace` | `~/.hermes/workspace` | container 内 WORKDIR (`/opt/data/workspace`) にマップされる host ディレクトリ。HERMES_HOME 配下なら追加 bind mount 不要 |
 | `hermes_agent_workspace_subdirs` | `[]` | workspace 配下に掘るサブディレクトリ list |
 
 ### wrappers / systemd
@@ -143,11 +143,11 @@ hermes config show            # 設定確認
 
 # container 内 bash に落ちる (デバッグ / 検査)
 hermes-shell
-hermes-shell -c "ls /workspace"
+hermes-shell -c "ls /opt/data/workspace"
 
 # 触らせたいファイル配置
-cp -r ~/some-project ~/hermes-workspace/
-git clone <url> ~/hermes-workspace/example
+cp -r ~/some-project ~/.hermes/workspace/
+git clone <url> ~/.hermes/workspace/example
 ```
 
 ### 手動制御

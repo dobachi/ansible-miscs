@@ -47,6 +47,6 @@ else
 fi
 
 exec docker exec "${DOCKER_TTY_FLAGS[@]}" \
-  -w /workspace \
+  -w /opt/data/workspace \
   "${CONTAINER_NAME}" \
   hermes "$@"

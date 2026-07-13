@@ -17,16 +17,17 @@ bind mount で見せる:
            └─ hermes CLI (docker exec で attach)
 
 [Host bind mounts]
-  ~/hermes-workspace  → /workspace   (WORKDIR、触らせるファイル置き場)
+  ~/.hermes            → /opt/data    (HERMES_HOME + workspace サブディレクトリ)
+                         WORKDIR=/opt/data/workspace (触らせるファイル置き場)
   ~/.hermes           → /opt/data    (config, .env, skills, memories, sessions)
 ```
 
-- `file` tool は container 内の `/workspace` と `/opt/data` 以外に届かない
+- `file` tool は container 内の `/opt/data` (= host `~/.hermes`) 配下しか触れない
   (rootfs は image layer で immutable、他 host FS は container から不可視)。
 - `terminal` tool も同 container 内 shell で走るので `rm -rf ~` の類が host に
   波及しない。
 - `$HOME/.ssh` などは container 側では**存在しない**扱い。触らせたいファイルは
-  `~/hermes-workspace/` にコピー / clone してから使う。
+  `~/.hermes/workspace/` にコピー / clone してから使う。
 
 ## Self-improvement (Hermes の売り) との整合
 
@@ -78,7 +79,7 @@ ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
 これで:
 - Docker Engine が起動、`dobachi` が docker group に入る
 - `nousresearch/hermes-agent:latest` を pull
-- `~/hermes-workspace/` を 0700 で作成
+- `~/.hermes/workspace/` を 0700 で作成
 - `~/.hermes/config.yaml` と `~/.hermes/.env` を bootstrap
 - `/etc/systemd/system/hermes-gateway.service` を配置 → enable + start
 - `~/.local/bin/hermes` (docker exec CLI ラッパー) 配置
@@ -110,7 +111,7 @@ hermes config show           # provider: openrouter が反映されているか
 ### 4. workspace にファイルを置いて対話
 
 ```bash
-git clone https://github.com/... ~/hermes-workspace/example-repo
+git clone https://github.com/... ~/.hermes/workspace/example-repo
 
 hermes                       # 対話開始
 # セッション内:

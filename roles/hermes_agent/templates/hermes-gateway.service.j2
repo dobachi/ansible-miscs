@@ -23,9 +23,11 @@ ExecStartPre=-/usr/bin/docker rm -f {{ hermes_agent_container_name }}
 ExecStart=/usr/bin/docker run --rm \
     --name {{ hermes_agent_container_name }} \
     --env-file /etc/hermes-gateway.env \
-    -v {{ _hermes_agent_workspace }}:/workspace \
-    -w /workspace \
     -v {{ _hermes_agent_home }}/.hermes:/opt/data \
+{% if _hermes_agent_workspace_needs_bind | bool %}
+    -v {{ _hermes_agent_workspace }}:/opt/data/workspace \
+{% endif %}
+    -w /opt/data/workspace \
     -e HERMES_UID={{ _hermes_agent_uid }} \
     -e HERMES_GID={{ _hermes_agent_gid }} \
 {% if hermes_agent_dashboard_enable | bool %}

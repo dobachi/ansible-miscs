@@ -41,9 +41,16 @@ hermes_agent_image: "nousresearch/hermes-agent:latest"
 # 環境変数 HERMES_CONTAINER=... を export しておくこと。
 hermes_agent_container_name: "hermes"
 
-# container が /workspace として bind mount する host 側ディレクトリ。
+# container 内 WORKDIR として使う host 側ディレクトリ。
 # 触らせたいファイルはここに置く / clone する。
-hermes_agent_workspace: "~/hermes-workspace"
+#
+# 既定は ~/.hermes/workspace で、これは:
+#   - HERMES_HOME (~/.hermes → /opt/data) 配下に統合される
+#     (container init が /opt/data/workspace を自動作成する慣習に沿う)
+#   - dashboard の Web UI から workspace が可視化される
+#   - bind mount が 1 個減る (~/.hermes 1 本で state + work を持ち込む)
+# 独立させたい場合は host_vars で "~/hermes-workspace" 等に差し替え。
+hermes_agent_workspace: "~/.hermes/workspace"
 
 # workspace 配下に事前に掘っておくサブディレクトリ (空 list なら root だけ作成)。
 hermes_agent_workspace_subdirs: []
@@ -107,6 +114,13 @@ hermes_agent_extra_docker_args: []
 # --- OpenRouter provider 設定 -------------------------------------------
 hermes_agent_openrouter_model: "anthropic/claude-sonnet-4.5"
 hermes_agent_openrouter_api_key: ""
+
+# gateway 経由 (dashboard / messaging) で起動するセッションの初期 cwd。
+# CLI 経由 (docker exec) は docker run の WORKDIR がそのまま効くが、
+# dashboard 起動のセッションは terminal.cwd を明示しないと HERMES_HOME
+# (/opt/data) で開始してしまう。
+# 空文字列にすると config.yaml に terminal ブロックを書き出さない (defaults 任せ)。
+hermes_agent_terminal_cwd: "/opt/data/workspace"
 
 # 既存の ~/.hermes/config.yaml をロールのテンプレで強制上書きするか。
 hermes_agent_reset_config: false

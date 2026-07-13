@@ -1,4 +1,4 @@
-# Hermes Agent 設定 (config v27 / Hermes 0.16.0 想定)
+# Hermes Agent 設定 (config v27+ / Hermes 0.18.x 想定)
 # Managed by Ansible role hermes_agent.
 #
 # 既定では initial bootstrap only (`force: false` 相当)。
@@ -10,12 +10,16 @@
 #   - provider: openrouter は Hermes の HermesOverlay に登録済み
 #     (hermes_cli/providers.py:47) なので、base_url を config に書く必要なし。
 #   - 認証は OPENROUTER_API_KEY (~/.hermes/.env) 側で渡す。
-#   - モデル slug は OpenRouter の canonical 形式 (例: anthropic/claude-sonnet-4.5)。
 #
-# 他の provider (Nous Portal / Anthropic 直 / ローカル llama-server 等) を
-# 後から追加したい場合は、ansible 実行後に `hermes setup` か `hermes model` で
-# custom_providers セクションを追記する (ロール側は model: ブロックのみ管理)。
+# terminal.cwd:
+#   - dashboard / messaging 起動のセッションが初期に居るディレクトリ。
+#   - CLI 経由 (docker exec) は docker run の WORKDIR がそのまま効くので不要だが、
+#     dashboard 起動セッションは gateway が terminal.cwd を参照するので明示する。
 
 model:
   provider: openrouter
   default: {{ hermes_agent_openrouter_model }}
+{% if hermes_agent_terminal_cwd | length > 0 %}
+terminal:
+  cwd: {{ hermes_agent_terminal_cwd }}
+{% endif %}
