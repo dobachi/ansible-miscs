@@ -1,37 +1,41 @@
 ---
 # =====================================================================
-# Hermes Agent (OpenRouter primary)
+# Hermes Agent (Docker sandboxed, OpenRouter primary)
 # =====================================================================
 #
 # 何を構築するか
 # --------------
-# Hermes Agent CLI を per-user で導入し、OpenRouter を primary provider
-# として ~/.hermes/config.yaml と ~/.hermes/.env を bootstrap する。
+# Hermes Agent CLI を **nousresearch/hermes-agent container** 版として
+# per-user 導入する。ラッパースクリプト ~/.local/bin/hermes を配置し、
+# 実行時に専用 workspace (~/hermes-workspace) と ~/.hermes を bind mount
+# した状態で docker run を発火する。
 #
-# 方針
-# ----
-# Nous Research 自身が Hermes-3 / Hermes-4 を "NOT agentic" と警告して
-# いる (hermes_cli/model_switch.py:53-58) ため、Hermes Agent 公式の一次
-# 推奨に近い OpenRouter primary を標準構成とする。ローカル LLM
-# (llama_server_deb + amdgpu_gtt) は非標準の実験用途として role 分離済み。
-# 併用したい場合はロール実行後に `hermes setup` で custom endpoint を登録する。
+# 隔離モデル
+# ----------
+#   [Host]                                 [container: nousresearch/hermes-agent]
+#   ~/hermes-workspace  ── bind mount ──→  /workspace  (WORKDIR)
+#   ~/.hermes           ── bind mount ──→  /opt/data   (config, API key, sessions)
 #
-# 構成
-# ----
-#   - register_home   : ansible_home 解決
-#   - amdgpu_gtt      : (opt-in) GRUB に amdgpu.gttsize=N を追記
-#   - llama_server_deb: (opt-in) llama.cpp-tools + Vulkan backend + systemd
-#   - hermes_agent    : per-user インストーラ + ~/.hermes/config.yaml + .env
+# file tool も terminal tool も上記 2 ディレクトリの外を触れない。
+# $HOME/.ssh, /etc/passwd 等は container からは存在しない扱い。
+#
+# 触らせたいファイルは workspace にコピー / clone してから hermes を起動する。
+#
+# 構成ロール
+# ----------
+#   - register_home  : ansible_home 解決
+#   - docker         : Docker CE + docker group で dobachi 追加
+#   - hermes_agent   : image pull + wrapper + workspace + ~/.hermes bootstrap
 #
 # 実行例
 # ------
-#   # 標準構成 (OpenRouter primary、ローカル LLM は使わない)
+#   # 標準構成 (Docker sandboxed, OpenRouter primary)
 #   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
 #     -e server=k16 \
 #     -e hermes_agent_enable=true \
 #     --ask-vault-pass
 #
-#   # テンプレ変更を config.yaml に強制反映
+#   # テンプレ変更を config.yaml に強制反映したい場合
 #   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
 #     -e server=k16 \
 #     -e hermes_agent_enable=true \
@@ -40,21 +44,19 @@
 #
 # 実行後の手動ステップ
 # --------------------
-#   1. 動作確認:
-#      - `hermes doctor`
-#      - `hermes config show`
-#      - `hermes`  (対話開始 → tool call 発火を確認)
-#   2. 別 provider 追加 (Nous Portal / Anthropic 直 / ローカル LLM):
-#      - `hermes setup` を対話実行
-#      - or `hermes config set` で dotted-key 経由
+#   1. docker group 反映: `newgrp docker` (or 一度ログアウト)
+#   2. PATH 確認: `command -v hermes` が ~/.local/bin/hermes を指す
+#   3. 動作確認: `hermes doctor`
+#   4. 触らせたいファイルを workspace に配置:
+#      cp -r ~/some-project ~/hermes-workspace/  (または `git clone` する)
+#   5. `hermes` で対話開始
 # =====================================================================
 
 - hosts: "{{ server | default('localhost') }}"
   become: true
   roles:
     - register_home
-    - amdgpu_gtt
-    - llama_server_deb
+    - docker
     - hermes_agent
 
 # vim: et ts=2 sw=2:

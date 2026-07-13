@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# {{ hermes_agent_launcher_name }} — Hermes Agent の sandboxed launcher
+# Managed by Ansible role hermes_agent. Do not hand-edit unless you know what
+# you're doing (次回の ansible 実行で上書きされる)。
+#
+# 隔離モデル:
+#   host の {{ hermes_agent_workspace }} を /workspace として bind mount。
+#   host の ~/.hermes を /opt/data として bind mount (config, API key, sessions)。
+#   これ以外の host FS は container から見えない (file tool も terminal tool も
+#   ここより外に出られない)。
+#
+# 環境変数による override:
+#   HERMES_WORKSPACE=/path/to/dir  一時的に workspace を差し替える
+#   HERMES_IMAGE=repo:tag          image tag を切替える
+#   HERMES_EXTRA_DOCKER_ARGS="..." docker run に追加引数を渡す
+#
+# 使い方:
+#   {{ hermes_agent_launcher_name }}                対話 CLI 起動
+#   {{ hermes_agent_launcher_name }} doctor         hermes doctor
+#   {{ hermes_agent_launcher_name }} config show    設定表示
+#   {{ hermes_agent_launcher_name }} -- --version   image ENTRYPOINT に生引数
+
+set -euo pipefail
+
+HERMES_IMAGE="${HERMES_IMAGE:-{{ hermes_agent_image }}}"
+HERMES_WORKSPACE="${HERMES_WORKSPACE:-{{ _hermes_agent_workspace }}}"
+HERMES_DATA="${HERMES_DATA:-$HOME/.hermes}"
+HERMES_EXTRA_DOCKER_ARGS="${HERMES_EXTRA_DOCKER_ARGS:-}"
+
+# workspace が存在しない場合は作らず早めに落とす (ansible 側で作るはず)。
+if [[ ! -d "$HERMES_WORKSPACE" ]]; then
+  echo "error: workspace directory not found: $HERMES_WORKSPACE" >&2
+  echo "hint: mkdir -p '$HERMES_WORKSPACE' or set HERMES_WORKSPACE=<other-dir>" >&2
+  exit 1
+fi
+
+# ~/.hermes は role が作っているはずだが、first-run safety として作る。
+mkdir -p "$HERMES_DATA"
+
+# 追加 docker args (host_vars で hermes_agent_extra_docker_args を渡した場合)。
+# Ansible 側で渡された固定引数と、環境変数の HERMES_EXTRA_DOCKER_ARGS を両方組む。
+declare -a EXTRA_ARGS=(
+{% for arg in hermes_agent_extra_docker_args %}
+  {{ arg | quote }}
+{% endfor %}
+)
+
+# HERMES_EXTRA_DOCKER_ARGS を単純に word split (空白区切り)。複雑な引用は
+# 現状サポートしない (必要になったら array export 経由で拡張する)。
+if [[ -n "$HERMES_EXTRA_DOCKER_ARGS" ]]; then
+  # shellcheck disable=SC2206
+  RUNTIME_EXTRA=( $HERMES_EXTRA_DOCKER_ARGS )
+  EXTRA_ARGS+=( "${RUNTIME_EXTRA[@]}" )
+fi
+
+exec docker run --rm -it \
+  --name "hermes-sb-$$" \
+  -v "$HERMES_WORKSPACE:/workspace" \
+  -w /workspace \
+  -v "$HERMES_DATA:/opt/data" \
+  -e "HERMES_UID=$(id -u)" \
+  -e "HERMES_GID=$(id -g)" \
+  "${EXTRA_ARGS[@]}" \
+  "$HERMES_IMAGE" "$@"

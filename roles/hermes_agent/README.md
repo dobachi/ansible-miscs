@@ -2,57 +2,64 @@ hermes_agent
 ============
 
 Nous Research の [Hermes Agent](https://hermes-agent.nousresearch.com/) CLI を
-per-user で導入し、`~/.hermes/config.yaml` + `~/.hermes/.env` を配置するロール。
+**Docker container 版** (`nousresearch/hermes-agent`) として per-user 導入し、
+ラッパースクリプトを `~/.local/bin/` に配置するロール。
 
-**OpenRouter primary** で bootstrap する。Hermes Agent の公式一次推奨は Nous Portal
-/ OpenRouter などクラウド provider で、Nous 自身が Hermes-3 / Hermes-4 を
-"NOT agentic" と警告している (`hermes_cli/model_switch.py:53-58`) ため、
-ローカル自前推論 (`roles/llama_server_deb` + `roles/amdgpu_gtt`) は本ロールから
-分離してあり、opt-in で組み合わせる形。
+## 隔離モデル
 
-Requirements
-------------
+エージェント本体 (venv, Node, Playwright, `file` / `terminal` / `browser` 等の
+tool 実装) は container の内側で走る。host からは以下2ディレクトリだけを
+bind mount で見せる:
+
+```
+[Host]                       [container]
+~/hermes-workspace  ────→   /workspace   (WORKDIR)
+~/.hermes           ────→   /opt/data    (config, API key, sessions)
+```
+
+`file` tool も `terminal` tool も上記2つの外を書き換えられない (container
+rootfs は image layer で immutable、それ以外の host FS は container から見えない)。
+`$HOME/.ssh`, `/etc/passwd`, `~/Sources/*` などの host ファイルは container
+からは存在しない扱い。
+
+**触らせたいファイルは `~/hermes-workspace/` にコピー / clone してから
+`hermes` を起動する運用**が原則。`$PWD` 依存にしていないので、うっかり
+`$HOME` から `hermes` を叩いて `~/.ssh` を露出させる事故が起きない。
+
+## Requirements
 
 - Ansible 2.9 以上
-- Debian/Ubuntu (apt 経由で依存パッケージを入れる)
-- 対象ユーザー (`hermes_agent_user`) がログイン可能 (Hermes インストーラを
-  `become_user` で走らせるため)
-- ネット接続 (公式インストーラを curl で落とす)
-- OpenRouter API key (`https://openrouter.ai/keys`) を Vault で暗号化して渡す
+- Debian/Ubuntu (24.04 / 26.04)
+- Docker Engine 動作中 (このロールを実行する前に `roles/docker` を通す)
+- 対象ユーザー (`hermes_agent_user`) が `docker` グループに所属
+- OpenRouter API key (`https://openrouter.ai/keys`) を Vault 暗号化して渡す
 
-Role Variables
---------------
+## Role Variables
 
 | 変数 | 既定値 | 説明 |
 | --- | --- | --- |
 | `hermes_agent_enable` | `false` | このロールを実行するかのスイッチ |
-| `hermes_agent_user` | 実行ユーザー (`SUDO_USER` / `ansible_user` / env `USER`) | Hermes を入れる対象ユーザー |
-| `hermes_agent_installer_url` | `https://hermes-agent.nousresearch.com/install.sh` | 公式 per-user installer URL |
-| `hermes_agent_install_apt_deps` | `true` | 依存 apt パッケージを入れるか |
-| `hermes_agent_apt_deps` | `[curl, ca-certificates, ripgrep, ffmpeg, nodejs]` | Ubuntu 26.04 の `nodejs` は `npm` を内包するので `npm` は列挙しない |
+| `hermes_agent_user` | 実行ユーザー | Hermes を入れる対象ユーザー |
+| `hermes_agent_image` | `nousresearch/hermes-agent:latest` | 引く公式 image (tag pinning したいなら上書き) |
+| `hermes_agent_workspace` | `~/hermes-workspace` | container の `/workspace` に bind mount する host ディレクトリ |
+| `hermes_agent_workspace_subdirs` | `[]` | 初期化時に workspace 配下に掘るサブディレクトリ list |
+| `hermes_agent_launcher_dir` | `~/.local/bin` | ラッパースクリプト設置先 |
+| `hermes_agent_launcher_name` | `hermes` | ラッパースクリプト名 (別名にしたい場合 `hermes-sb` 等) |
+| `hermes_agent_extra_docker_args` | `[]` | `docker run` 追加引数 (例: `["--network=host"]`) |
 | `hermes_agent_openrouter_model` | `anthropic/claude-sonnet-4.5` | OpenRouter で primary として使うモデル slug |
-| `hermes_agent_openrouter_api_key` | `""` | OPENROUTER_API_KEY。空文字列だと `.env` 書き込みを skip。Vault 化した値を渡す想定 |
-| `hermes_agent_reset_config` | `false` | true にするとロールが `~/.hermes/config.yaml` を強制上書きする (元ファイルは backup: で `.~` 退避) |
+| `hermes_agent_openrouter_api_key` | `""` | OPENROUTER_API_KEY (Vault 化した値を渡す) |
+| `hermes_agent_reset_config` | `false` | true にすると `~/.hermes/config.yaml` を強制上書き |
 
 設定ファイルは既定で初回 bootstrap (`force: false`) のみで配置する。
-`hermes setup` / `hermes model` / `hermes config set` 等で加えた修正は再ロール
-実行で消えない。ロール側のテンプレを変えた直後に反映したい場合は
-`-e hermes_agent_reset_config=true` を渡して再実行する。
+container 内で `hermes setup` / `hermes model` / `hermes config set` 経由で
+加えた修正は再ロール実行で消えない (host `~/.hermes/config.yaml` = container
+`/opt/data/config.yaml`)。
 
-別 provider (Nous Portal / Anthropic 直 / ローカル llama-server 等) を併用したい
-場合は ansible 実行後に `hermes setup` を対話実行する
-(本ロールは `model:` ブロックと `OPENROUTER_API_KEY` のみ管理)。
+## Dependencies
 
-Dependencies
-------------
+`roles/docker` を playbook 内で先に流すこと (docker group への追加が必要)。
 
-なし。ローカル LLM 併用の実験用途で
-[`roles/llama_server_deb`](../llama_server_deb/) と組み合わせることも可能だが、
-その場合は `hermes setup` で custom endpoint を追加する必要がある
-(本ロールは触らない)。
-
-Example Playbook
-----------------
+## Example Playbook
 
 ```yaml
 - hosts: k16
@@ -60,14 +67,17 @@ Example Playbook
   vars_files:
     - "{{ inventory_dir }}/host_vars/k16/vault.yml"
   roles:
+    - role: docker
+      vars:
+        docker_enable: true
+        docker_users: ["dobachi"]
     - role: hermes_agent
       vars:
         hermes_agent_enable: true
-        hermes_agent_openrouter_model: "anthropic/claude-sonnet-4.5"
         hermes_agent_openrouter_api_key: "{{ vault_hermes_openrouter_api_key }}"
 ```
 
-Vault に API key を登録する例:
+Vault に API key を登録:
 
 ```bash
 ansible-vault encrypt_string 'sk-or-v1-...' \
@@ -75,23 +85,50 @@ ansible-vault encrypt_string 'sk-or-v1-...' \
   >> host_vars/k16/vault.yml
 ```
 
-実行後の動作確認:
+## 使い方 (実行後)
 
-```bash
-hermes doctor                              # Hermes 健全性チェック
-hermes config show                         # provider: openrouter が反映されているか
-hermes                                     # 起動して適当に会話 → tool call 発火を確認
-```
+1. **docker group 反映** (初回のみ):
+   ```bash
+   newgrp docker      # 現セッションに反映 (or ログアウト → ログイン)
+   docker run --rm hello-world
+   ```
 
-セッション内のモデル切替:
+2. **PATH 確認**:
+   ```bash
+   command -v hermes         # /home/<user>/.local/bin/hermes を指す
+   ```
 
-```
-/model openrouter/anthropic/claude-sonnet-4.5
-/model openrouter/qwen/qwen3-coder
-/model openrouter/deepseek/deepseek-v3.2
-```
+3. **動作確認**:
+   ```bash
+   hermes doctor
+   hermes config show        # provider: openrouter が反映
+   ```
 
-推奨モデル (OpenRouter 経由):
+4. **触らせたいファイルを workspace へ**:
+   ```bash
+   cp -r ~/some-project ~/hermes-workspace/
+   # or: git clone <url> ~/hermes-workspace/some-repo
+   ```
+
+5. **対話開始**:
+   ```bash
+   hermes
+   # プロンプト内でモデル切替:
+   /model openrouter/anthropic/claude-sonnet-4.5
+   /model openrouter/qwen/qwen3-coder
+   ```
+
+## 環境変数による override
+
+ラッパースクリプトが読む環境変数:
+
+| 変数 | 用途 |
+| --- | --- |
+| `HERMES_WORKSPACE` | 一時的に workspace を別ディレクトリに切替 (`HERMES_WORKSPACE=/tmp/work hermes`) |
+| `HERMES_IMAGE` | image tag 差替 |
+| `HERMES_EXTRA_DOCKER_ARGS` | `docker run` に追加引数 (word split, 単純用途のみ) |
+
+## 推奨モデル (OpenRouter 経由)
 
 | 用途 | モデル slug | 備考 |
 | --- | --- | --- |
@@ -100,12 +137,10 @@ hermes                                     # 起動して適当に会話 → too
 | コーディング特化 | `qwen/qwen3-coder`, `deepseek/deepseek-v3.2` | Hermes curated list 掲載 |
 | コンパクション (aux) | `google/gemini-flash-*` | 安価・高速 |
 
-License
--------
+## License
 
 BSD-3-Clause
 
-Author Information
-------------------
+## Author
 
 dobachi

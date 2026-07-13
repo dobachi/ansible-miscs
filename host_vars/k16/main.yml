@@ -36,16 +36,30 @@ vnc_server_password: "{{ vault_vnc_password }}"
 rclone_sharepoint_enable: true
 rclone_sharepoint_remote_name: "dobachi-private"
 
-# --- Hermes Agent (OpenRouter primary) ---------------------------------
-# ローカル llama-server は休眠 (llama_server_deb_enable のデフォルト false のまま)。
-# Nous Research 自身が Hermes-3 / Hermes-4 を "NOT agentic" と警告している
-# (hermes_cli/model_switch.py:53-58) ため、docs 一次推奨の OpenRouter primary
-# に統一。amdgpu_gtt の GRUB 変更 (amdgpu.gttsize=N) は反映済みだが有効化は
-# 不要 (amdgpu_gtt_enable のデフォルト false のまま)。
+# --- Docker (Hermes Agent の隔離実行基盤 + 一般用途) --------------------
+# roles/hermes_agent が nousresearch/hermes-agent container を叩けるように
+# docker.service を確実に enable + dobachi を docker group に入れる。
+docker_enable: true
+docker_users: ["dobachi"]
+
+# --- Hermes Agent (Docker sandboxed, OpenRouter primary) ---------------
+# エージェント本体は nousresearch/hermes-agent container 内で走らせる。
+# host からは以下の2ディレクトリだけを bind mount で見せる:
+#   ~/hermes-workspace → /workspace  (触らせたいファイルはここに置く)
+#   ~/.hermes          → /opt/data   (config, API key, sessions)
+# file tool も terminal tool も上記 2 ディレクトリの外を触れない。
+#
+# ローカル llama-server / amdgpu_gtt は休眠 (defaults の enable:false のまま)。
+# Hermes は OpenRouter primary で Anthropic / Qwen3 / DeepSeek 等を経由。
 #
 # OPENROUTER_API_KEY は host_vars/k16/vault.yml で Vault 化:
 #   ansible-vault encrypt_string 'sk-or-v1-...' \
 #     --name 'vault_hermes_openrouter_api_key' >> host_vars/k16/vault.yml
 hermes_agent_openrouter_model: "anthropic/claude-sonnet-4.5"
 hermes_agent_openrouter_api_key: "{{ vault_hermes_openrouter_api_key }}"
+
+# 触らせるディレクトリ (default のままでよい場合はこの行不要)
+# hermes_agent_workspace: "~/hermes-workspace"
+# 初期化しておきたいサブディレクトリ (作業カテゴリ分けする場合)
+# hermes_agent_workspace_subdirs: [projects, sandbox, scratch]
 

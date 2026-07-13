@@ -1,23 +1,20 @@
 ---
 # tasks file for roles/hermes_agent
 #
-# Hermes Agent CLI を hermes_agent_user の home に per-user で入れて、
-# ~/.hermes/config.yaml をテンプレから配置する。
-# OPENROUTER_API_KEY は ~/.hermes/.env に書き込む (Vault で暗号化した値を渡す想定)。
+# Hermes Agent CLI を Docker container 版 (nousresearch/hermes-agent) として
+# per-user 導入する。ラッパースクリプトを ~/.local/bin/{{ hermes_agent_launcher_name }}
+# に置き、専用ワークスペース ({{ hermes_agent_workspace }}) を /workspace として
+# bind mount する。file tool は container 外を触れない。
 #
-# Nous Portal / Anthropic 直 / ローカル LLM (llama_server_deb) を併用したい場合は
-# ロール実行後に `hermes setup` か `hermes model` を対話実行して custom_providers
-# セクションを追加する (本ロールは model: ブロックと OPENROUTER_API_KEY のみ管理)。
+# 前提:
+#   - Docker Engine が動作中 (roles/docker で導入済み想定)
+#   - hermes_agent_user が docker グループに所属 (roles/docker の docker_users)
+#   - OPENROUTER_API_KEY を Vault 化した値で hermes_agent_openrouter_api_key
+#     に渡す
 
 - block:
 
-    - name: Install Hermes apt dependencies
-      ansible.builtin.apt:
-        name: "{{ hermes_agent_apt_deps }}"
-        state: present
-        update_cache: true
-        cache_valid_time: 3600
-      when: hermes_agent_install_apt_deps | bool
+    # ---------- pre-flight ----------
 
     - name: Look up home of hermes_agent_user
       ansible.builtin.getent:
@@ -28,44 +25,83 @@
       ansible.builtin.set_fact:
         _hermes_agent_home: "{{ getent_passwd[hermes_agent_user][4] }}"
 
-    - name: Run Hermes per-user installer (idempotent via creates)
-      ansible.builtin.shell: |
-        set -o pipefail
-        curl -fsSL {{ hermes_agent_installer_url }} | bash
-      args:
-        executable: /bin/bash
-        creates: "{{ _hermes_agent_home }}/.hermes/hermes-agent/venv/bin/hermes"
+    - name: Expand ~ in hermes_agent_workspace
+      ansible.builtin.set_fact:
+        _hermes_agent_workspace: >-
+          {{ hermes_agent_workspace
+             | regex_replace('^~', _hermes_agent_home) }}
+
+    - name: Expand ~ in hermes_agent_launcher_dir
+      ansible.builtin.set_fact:
+        _hermes_agent_launcher_dir: >-
+          {{ hermes_agent_launcher_dir
+             | regex_replace('^~', _hermes_agent_home) }}
+
+    - name: Assert Docker Engine is running
+      ansible.builtin.systemd:
+        name: docker
+      register: _hermes_agent_docker_status
+      failed_when:
+        - _hermes_agent_docker_status.status.ActiveState is defined
+        - _hermes_agent_docker_status.status.ActiveState != "active"
+
+    # /etc/group を読むだけでは「現行 login shell が docker group を activate
+    # 済みか」がわからない (usermod 後にログアウトしていないと、既存セッション
+    # では group が反映されない = docker.sock 接続失敗)。
+    # `sudo -u <user> docker info` で **fresh 子プロセスで実接続** を試す。
+    - name: Assert hermes_agent_user can talk to Docker daemon (fresh subprocess)
+      ansible.builtin.command:
+        cmd: docker version --format json
       become: true
       become_user: "{{ hermes_agent_user }}"
-      environment:
-        HOME: "{{ _hermes_agent_home }}"
+      register: _hermes_agent_docker_probe
+      changed_when: false
+      failed_when: _hermes_agent_docker_probe.rc != 0
+      # 失敗ケースの典型:
+      #   1) docker.sock 権限エラー: usermod -aG docker した直後で、既存 login
+      #      session に group が反映されていない → newgrp docker or 再ログイン
+      #   2) socket group が 'docker' 以外 → getent group で確認して group 追加
 
-    - name: Ensure ~/.hermes directory exists
+    # ---------- image ----------
+
+    - name: Pull Hermes Agent Docker image
+      community.docker.docker_image:
+        name: "{{ hermes_agent_image }}"
+        source: pull
+        force_source: false
+      become: true
+      become_user: "{{ hermes_agent_user }}"
+
+    # ---------- workspace directory ----------
+
+    - name: Ensure workspace root directory exists (0700)
+      ansible.builtin.file:
+        path: "{{ _hermes_agent_workspace }}"
+        state: directory
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0700"
+
+    - name: Ensure workspace subdirectories exist
+      ansible.builtin.file:
+        path: "{{ _hermes_agent_workspace }}/{{ item }}"
+        state: directory
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0700"
+      loop: "{{ hermes_agent_workspace_subdirs }}"
+      when: hermes_agent_workspace_subdirs | length > 0
+
+    # ---------- ~/.hermes (host data volume) ----------
+
+    - name: Ensure ~/.hermes directory exists (0700)
       ansible.builtin.file:
         path: "{{ _hermes_agent_home }}/.hermes"
         state: directory
         owner: "{{ hermes_agent_user }}"
         group: "{{ hermes_agent_user }}"
-        mode: "0755"
+        mode: "0700"
 
-    # force の挙動:
-    #   - 既定 (hermes_agent_reset_config=false): force:false で初回 bootstrap
-    #     のみ。`hermes setup` / `hermes model` / `hermes config set` で加えた
-    #     修正は再ロール実行で消えない。
-    #   - hermes_agent_reset_config=true: force:true で強制上書き。テンプレ側を
-    #     変えた直後 (openrouter_model 変更など) に反映したい時に使う。
-    - name: Bootstrap ~/.hermes/config.yaml (force toggled by hermes_agent_reset_config)
-      ansible.builtin.template:
-        src: hermes-config.yaml.j2
-        dest: "{{ _hermes_agent_home }}/.hermes/config.yaml"
-        owner: "{{ hermes_agent_user }}"
-        group: "{{ hermes_agent_user }}"
-        mode: "0600"
-        force: "{{ hermes_agent_reset_config | bool }}"
-        backup: true
-
-    # ~/.hermes/.env は Hermes の installer (postinstall) が空ファイルとして
-    # 作らないケースがあるので、書き込み前に確実に存在させる。
     - name: Ensure ~/.hermes/.env exists with restrictive perms
       ansible.builtin.file:
         path: "{{ _hermes_agent_home }}/.hermes/.env"
@@ -90,14 +126,50 @@
       no_log: true
       when: hermes_agent_openrouter_api_key | length > 0
 
+    # force の挙動:
+    #   - hermes_agent_reset_config=false (既定): 既存ファイルは触らない。
+    #     CLI (`hermes config set` 等) の修正はロール再実行で消えない。
+    #   - hermes_agent_reset_config=true: template で強制上書き (元は .~ に退避)。
+    - name: Bootstrap ~/.hermes/config.yaml (force toggled by hermes_agent_reset_config)
+      ansible.builtin.template:
+        src: hermes-config.yaml.j2
+        dest: "{{ _hermes_agent_home }}/.hermes/config.yaml"
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0600"
+        force: "{{ hermes_agent_reset_config | bool }}"
+        backup: true
+
+    # ---------- wrapper script ----------
+
+    - name: Ensure launcher directory exists
+      ansible.builtin.file:
+        path: "{{ _hermes_agent_launcher_dir }}"
+        state: directory
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0755"
+
+    - name: Deploy Hermes sandboxed launcher script
+      ansible.builtin.template:
+        src: hermes-launcher.sh.j2
+        dest: "{{ _hermes_agent_launcher_dir }}/{{ hermes_agent_launcher_name }}"
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0755"
+
     - name: Post-install reminders
       ansible.builtin.debug:
         msg:
-          - "=== Hermes Agent 構築完了 (OpenRouter primary) ==="
-          - "1. 動作確認: `hermes doctor` (→ docs/hermes.md)"
-          - "2. モデル一覧: `hermes` 起動後に `/model` (OpenRouter picker)"
-          - "3. 別 provider 追加は `hermes setup` / `hermes model` を対話実行"
-          - "   (Nous Portal / Anthropic 直 / ローカル llama-server 等)"
+          - "=== Hermes Agent (Docker sandboxed) 構築完了 ==="
+          - "Workspace: {{ _hermes_agent_workspace }} (Hermes からはここだけ触れる)"
+          - "Launcher : {{ _hermes_agent_launcher_dir }}/{{ hermes_agent_launcher_name }}"
+          - "Image    : {{ hermes_agent_image }}"
+          - ""
+          - "1. PATH 確認: `command -v {{ hermes_agent_launcher_name }}`"
+          - "2. 動作確認: `{{ hermes_agent_launcher_name }} doctor`"
+          - "3. 対話開始: `{{ hermes_agent_launcher_name }}`"
+          - "4. 触らせたいファイルは workspace にコピー/clone してから開始"
 
   tags:
     - hermes_agent

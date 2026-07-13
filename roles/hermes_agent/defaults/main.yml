@@ -1,75 +1,75 @@
 ---
 # defaults file for roles/hermes_agent
 #
-# Hermes Agent (Nous Research) を per-user CLI として導入し、
-# OpenRouter primary で ~/.hermes/config.yaml と ~/.hermes/.env を配置する。
+# Hermes Agent (Nous Research) を **Docker container 版** として per-user 導入する。
 #
-# 方針:
-#   - Hermes Agent 公式の一次推奨は Nous Portal / OpenRouter などクラウド provider。
-#   - OpenRouter は Hermes の first-class provider (hermes_cli/providers.py:47 に
-#     HermesOverlay 登録) で、200+ モデルを単一 API key で選択できる。
-#   - Nous 自身が Hermes-3 / Hermes-4 を "NOT agentic" と警告している
-#     (hermes_cli/model_switch.py:53-58)。ローカル自前推論は非標準扱いなので、
-#     このロールでは OpenRouter primary に振り、ローカル LLM (llama_server_deb /
-#     amdgpu_gtt) はロール分離済み (呼び出し側で opt-in) のまま扱う。
-#
-# 認証情報 (OPENROUTER_API_KEY) は Vault で暗号化した上で
-# hermes_agent_openrouter_api_key に渡す想定。ロール側は ~/.hermes/.env に
-# 書き出し、no_log:true でログから伏せる。
+# 隔離モデル (docs/hermes.md 参照):
+#   - エージェント本体 (venv, Node, Playwright, file/terminal/browser tools) は
+#     nousresearch/hermes-agent:latest container の内側で走る。
+#   - host 側で container に見せるのは以下の2ディレクトリだけ:
+#       {{ hermes_agent_workspace }} → /workspace   (作業用固定ディレクトリ)
+#       ~/.hermes                    → /opt/data    (config, API key, sessions)
+#   - file tool は container 内の /workspace と /opt/data 以外書き込み不可
+#     (rootfs は image layer で immutable)。
+#   - terminal tool も同 container 内で走るので、`rm -rf ~` 系の host 破壊が
+#     起きない。
+#   - $PWD 依存ではなく **専用ワークスペース固定**: hermes を $HOME から誤って
+#     叩いても ~/.ssh 等を container に見せる事故が起きない。触らせたいファイル
+#     は workspace 配下に置く運用。
 
 # このロール本体を実行するかのスイッチ。
 hermes_agent_enable: false
 
-# Hermes を入れる対象ユーザー (~/.hermes 配下に展開される)。
-#
-# 優先順位:
-#   1. SUDO_USER 環境変数 (`sudo ansible-playbook ...` で実行した場合)
-#   2. ansible_user (SSH 接続/connection plugin のユーザー、become 前)
-#   3. lookup('env', 'USER') (制御ノード側、ansible_user も無い localhost ケース)
-# `ansible_user_id` は使わない — become: true 下で 'root' に化けて
-# /root/.hermes/ に書かれる事故になるため。
+# Hermes を入れる対象ユーザー (~/.hermes 配下に config が展開される)。
+# become 前の実行ユーザーを推定する。ansible_user_id (become 後の root) は使わない。
 hermes_agent_user: >-
   {{ ansible_facts['env']['SUDO_USER']
      | default(ansible_user, true)
      | default(lookup('env', 'USER'), true) }}
 
-# Hermes 公式 per-user インストーラ URL。
-hermes_agent_installer_url: "https://hermes-agent.nousresearch.com/install.sh"
+# 公式 Docker image。tag は :latest 固定でも構わないが、pinning したい場合は
+# host_vars で `nousresearch/hermes-agent:0.18.2` のように渡す。
+hermes_agent_image: "nousresearch/hermes-agent:latest"
 
-# Hermes が依存する OS パッケージを apt で導入するか。
-hermes_agent_install_apt_deps: true
-# Ubuntu 26.04 の `nodejs` パッケージは `npm` を内包して `Conflicts: npm` を
-# 宣言しているため、apt の `npm` を別途要求するとトランザクションが壊れる。
-# `nodejs` をインストールすれば `npm` バイナリも一緒に入るので `npm` は列挙しない。
-hermes_agent_apt_deps:
-  - curl
-  - ca-certificates
-  - ripgrep
-  - ffmpeg
-  - nodejs
+# Hermes container が /workspace として bind mount する host 側ディレクトリ。
+# ユーザーが Hermes に触らせたいファイルはここに置く / clone / cp する。
+# 絶対パスまたは ~ で始まるパスを受け付ける (ロール内で展開)。
+# 一時的に別ディレクトリを使いたい場合はラッパー起動時に環境変数で上書き:
+#   HERMES_WORKSPACE=/tmp/other-dir hermes
+hermes_agent_workspace: "~/hermes-workspace"
+
+# ワークスペース内に事前に掘っておくサブディレクトリ (作業カテゴリ分けする場合)。
+# 例: hermes_agent_workspace_subdirs: [projects, sandbox, scratch]
+# 空 list ならワークスペースルートだけを 0700 で作成する。
+hermes_agent_workspace_subdirs: []
+
+# ラッパースクリプトの設置先 (per-user)。~/.local/bin は PATH に入っている
+# 前提 (Ubuntu 26.04 の default .profile が自動追加)。
+hermes_agent_launcher_dir: "~/.local/bin"
+
+# ラッパースクリプト名。既定 "hermes" にしておくと従来の CLI muscle memory を
+# そのまま活かせる (host 直インストール版は uninstall 済み前提)。
+# 「sandbox 経由と明示したい」なら hermes_agent_launcher_name: hermes-sb 等。
+hermes_agent_launcher_name: "hermes"
+
+# docker run に追加で渡したい引数 (list of strings)。
+# 例:
+#   - "--network=host"       # container から host の 8080 llama-server を叩く場合
+#   - "--memory=16g"
+# 既定の bind mount (workspace + ~/.hermes) と UID/GID forwarding は自動。
+hermes_agent_extra_docker_args: []
 
 # --- OpenRouter provider 設定 -------------------------------------------
-# OpenRouter は provider: openrouter で first-class 扱い。
-# base_url は overlay に登録済みなので config.yaml に書かなくても解決する。
-# API key は ~/.hermes/.env の OPENROUTER_API_KEY を Hermes が拾う。
+# provider: openrouter は Hermes の first-class provider (HermesOverlay 登録済み)。
+# API key は ~/.hermes/.env の OPENROUTER_API_KEY を container から
+# /opt/data/.env として拾う。
 
-# OpenRouter で primary として使うモデル ID。
-# 推奨: 明確に agentic (tool-calling 訓練済み) なモデルを指定する。
-#   - anthropic/claude-sonnet-4.5   (Hermes docs 一次推奨クラス)
-#   - anthropic/claude-haiku-4-5    (廉価)
-#   - qwen/qwen3-coder              (Hermes curated: Qwen3 系)
-#   - deepseek/deepseek-v3.2        (Hermes curated)
-# OpenRouter 側の正式 slug に合わせる (https://openrouter.ai/models 参照)。
+# OpenRouter で primary として使うモデル ID (OpenRouter canonical slug)。
 hermes_agent_openrouter_model: "anthropic/claude-sonnet-4.5"
 
-# OPENROUTER_API_KEY。空文字列だと ~/.hermes/.env への書き込みを skip する
-# (この場合はユーザーが後で `hermes config set OPENROUTER_API_KEY sk-or-...`
-# か手動で ~/.hermes/.env を編集する)。
-# host_vars 側で Vault 化した値を渡すのが標準運用:
-#   hermes_agent_openrouter_api_key: "{{ vault_hermes_openrouter_api_key }}"
+# OPENROUTER_API_KEY。空文字列だと ~/.hermes/.env への書き込みを skip する。
+# 標準運用: host_vars で `{{ vault_hermes_openrouter_api_key }}` を渡す。
 hermes_agent_openrouter_api_key: ""
 
 # 既存の ~/.hermes/config.yaml をロールのテンプレで強制上書きするか。
-#   false (既定): force:false 動作。既存ファイルは触らない (CLI/手書き修正を保持)
-#   true        : テンプレを反映するため上書き (元ファイルは backup: で .~ 退避)
 hermes_agent_reset_config: false
