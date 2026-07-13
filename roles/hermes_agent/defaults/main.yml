@@ -2,12 +2,20 @@
 # defaults file for roles/hermes_agent
 #
 # Hermes Agent (Nous Research) を per-user CLI として導入し、
-# ~/.hermes/config.yaml を配置するロール。
+# OpenRouter primary で ~/.hermes/config.yaml と ~/.hermes/.env を配置する。
 #
-# 認証情報 (Anthropic API key / OAuth トークン) はここでは扱わない:
-#   - `hermes setup` を対話で走らせる、または
-#   - ANTHROPIC_API_KEY を ~/.bashrc 等に export
-# のどちらかをロール実行後に手で行う。
+# 方針:
+#   - Hermes Agent 公式の一次推奨は Nous Portal / OpenRouter などクラウド provider。
+#   - OpenRouter は Hermes の first-class provider (hermes_cli/providers.py:47 に
+#     HermesOverlay 登録) で、200+ モデルを単一 API key で選択できる。
+#   - Nous 自身が Hermes-3 / Hermes-4 を "NOT agentic" と警告している
+#     (hermes_cli/model_switch.py:53-58)。ローカル自前推論は非標準扱いなので、
+#     このロールでは OpenRouter primary に振り、ローカル LLM (llama_server_deb /
+#     amdgpu_gtt) はロール分離済み (呼び出し側で opt-in) のまま扱う。
+#
+# 認証情報 (OPENROUTER_API_KEY) は Vault で暗号化した上で
+# hermes_agent_openrouter_api_key に渡す想定。ロール側は ~/.hermes/.env に
+# 書き出し、no_log:true でログから伏せる。
 
 # このロール本体を実行するかのスイッチ。
 hermes_agent_enable: false
@@ -20,26 +28,19 @@ hermes_agent_enable: false
 #   3. lookup('env', 'USER') (制御ノード側、ansible_user も無い localhost ケース)
 # `ansible_user_id` は使わない — become: true 下で 'root' に化けて
 # /root/.hermes/ に書かれる事故になるため。
-# 別ユーザーに入れたいなら playbook / extra-vars で明示的に上書きする。
 hermes_agent_user: >-
   {{ ansible_facts['env']['SUDO_USER']
      | default(ansible_user, true)
      | default(lookup('env', 'USER'), true) }}
 
 # Hermes 公式 per-user インストーラ URL。
-# 中身は curl | bash 流の installer で、~/.hermes/hermes-agent/ に
-# venv を作ってその中に hermes CLI を入れる。sudo は要求しない
-# (依存パッケージは下の hermes_agent_apt_deps で事前に揃える前提)。
 hermes_agent_installer_url: "https://hermes-agent.nousresearch.com/install.sh"
 
 # Hermes が依存する OS パッケージを apt で導入するか。
-# 既存ホストで揃ってる前提なら false にしてスキップしても良い。
 hermes_agent_install_apt_deps: true
 # Ubuntu 26.04 の `nodejs` パッケージは `npm` を内包して `Conflicts: npm` を
-# 宣言しているため、apt の `npm` を別途要求するとトランザクションが壊れる
-# (nodesource など他経路で nodejs が入っている環境でも同様)。
-# `nodejs` をインストールすれば `npm` バイナリも一緒に入るので、ここでは
-# `npm` を列挙しない。
+# 宣言しているため、apt の `npm` を別途要求するとトランザクションが壊れる。
+# `nodejs` をインストールすれば `npm` バイナリも一緒に入るので `npm` は列挙しない。
 hermes_agent_apt_deps:
   - curl
   - ca-certificates
@@ -47,37 +48,28 @@ hermes_agent_apt_deps:
   - ffmpeg
   - nodejs
 
-# --- Hermes config.yaml 生成パラメータ -----------------------------------
-# Hermes 0.16.0 (config v27) は Custom OpenAI 互換エンドポイントを `model:`
-# ブロックに直接 base_url/api_key 埋め込む形で登録する。本ロールはローカル
-# LLM (`roles/llama_server_deb` の llama-server) を default にして初期 bootstrap
-# する。Anthropic Claude を主脳にしたい場合は ansible 後に `hermes setup` で
-# OAuth/API key を入れる (template モジュールは `force: false` 運用)。
+# --- OpenRouter provider 設定 -------------------------------------------
+# OpenRouter は provider: openrouter で first-class 扱い。
+# base_url は overlay に登録済みなので config.yaml に書かなくても解決する。
+# API key は ~/.hermes/.env の OPENROUTER_API_KEY を Hermes が拾う。
 
-# ローカル LLM の OpenAI 互換 base URL。
-hermes_agent_local_base_url: "http://127.0.0.1:8080/v1"
+# OpenRouter で primary として使うモデル ID。
+# 推奨: 明確に agentic (tool-calling 訓練済み) なモデルを指定する。
+#   - anthropic/claude-sonnet-4.5   (Hermes docs 一次推奨クラス)
+#   - anthropic/claude-haiku-4-5    (廉価)
+#   - qwen/qwen3-coder              (Hermes curated: Qwen3 系)
+#   - deepseek/deepseek-v3.2        (Hermes curated)
+# OpenRouter 側の正式 slug に合わせる (https://openrouter.ai/models 参照)。
+hermes_agent_openrouter_model: "anthropic/claude-sonnet-4.5"
 
-# 上記ローカル base_url が公開する model id。
-# roles/llama_server_deb の llama_server_deb_model_alias と揃える。
-hermes_agent_local_model_name: "qwen2.5-coder-14b"
-
-# Hermes Agent の最小要件は 64K context。Qwen2.5-Coder の n_ctx_train は
-# 32768 なので、llama-server 側で --ctx-size 65536 にして RoPE 延長し、
-# Hermes 側にも context_length を明示しないと「ctx 不足」で起動拒否される。
-hermes_agent_local_context_length: 65536
-
-# 認証不要なローカル LLM 向けダミー API key。Hermes は値を要求するが
-# llama-server 側はチェックしないので任意の文字列で良い。
-hermes_agent_local_api_key: "dummy"
-
-# (削除) hermes_agent_local_api_mode:
-# Hermes 0.16.0 の hermes_cli/providers.py を読んだ結果、`model.api_mode` は
-# 明示不要。`provider: llamacpp` (テンプレ参照) で alias 解決 → 内部 "local"
-# → determine_api_mode が URL ヒューリスティクスで chat_completions に
-# フォールバックする (default)。
+# OPENROUTER_API_KEY。空文字列だと ~/.hermes/.env への書き込みを skip する
+# (この場合はユーザーが後で `hermes config set OPENROUTER_API_KEY sk-or-...`
+# か手動で ~/.hermes/.env を編集する)。
+# host_vars 側で Vault 化した値を渡すのが標準運用:
+#   hermes_agent_openrouter_api_key: "{{ vault_hermes_openrouter_api_key }}"
+hermes_agent_openrouter_api_key: ""
 
 # 既存の ~/.hermes/config.yaml をロールのテンプレで強制上書きするか。
 #   false (既定): force:false 動作。既存ファイルは触らない (CLI/手書き修正を保持)
 #   true        : テンプレを反映するため上書き (元ファイルは backup: で .~ 退避)
-# テンプレ側を変えた直後にだけ `-e hermes_agent_reset_config=true` で渡す想定。
 hermes_agent_reset_config: false

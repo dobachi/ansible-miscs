@@ -3,12 +3,11 @@
 #
 # Hermes Agent CLI を hermes_agent_user の home に per-user で入れて、
 # ~/.hermes/config.yaml をテンプレから配置する。
+# OPENROUTER_API_KEY は ~/.hermes/.env に書き込む (Vault で暗号化した値を渡す想定)。
 #
-# 認証 (Claude API key 等) はここでは扱わない (秘密情報のため、
-# ロール実行後に `hermes setup` か ANTHROPIC_API_KEY 環境変数で設定する)。
-#
-# Hermes 推論バックエンドは roles/llama_server_deb で立てた
-# llama-server を既定で参照する (config.yaml の custom_providers)。
+# Nous Portal / Anthropic 直 / ローカル LLM (llama_server_deb) を併用したい場合は
+# ロール実行後に `hermes setup` か `hermes model` を対話実行して custom_providers
+# セクションを追加する (本ロールは model: ブロックと OPENROUTER_API_KEY のみ管理)。
 
 - block:
 
@@ -40,9 +39,6 @@
       become_user: "{{ hermes_agent_user }}"
       environment:
         HOME: "{{ _hermes_agent_home }}"
-      # インストーラは sudo を要求しないが、apt 依存が揃ってないと
-      # 失敗する可能性があるので上の Install Hermes apt dependencies を
-      # 必ず先に通すこと。
 
     - name: Ensure ~/.hermes directory exists
       ansible.builtin.file:
@@ -54,12 +50,10 @@
 
     # force の挙動:
     #   - 既定 (hermes_agent_reset_config=false): force:false で初回 bootstrap
-    #     のみ。`hermes setup` / `hermes model` 等で加えた修正は再ロール実行で
-    #     消えない。Hermes 0.16.0 (v27) は初回起動時に config.yaml を全 default
-    #     で展開して肥大化するので、それを尊重する。
+    #     のみ。`hermes setup` / `hermes model` / `hermes config set` で加えた
+    #     修正は再ロール実行で消えない。
     #   - hermes_agent_reset_config=true: force:true で強制上書き。テンプレ側を
-    #     変えた直後 (ollama_num_ctx 追加など) に反映したい時に使う。元ファイル
-    #     は backup: で `.<PID>.<timestamp>~` の名前で退避される。
+    #     変えた直後 (openrouter_model 変更など) に反映したい時に使う。
     - name: Bootstrap ~/.hermes/config.yaml (force toggled by hermes_agent_reset_config)
       ansible.builtin.template:
         src: hermes-config.yaml.j2
@@ -70,13 +64,40 @@
         force: "{{ hermes_agent_reset_config | bool }}"
         backup: true
 
+    # ~/.hermes/.env は Hermes の installer (postinstall) が空ファイルとして
+    # 作らないケースがあるので、書き込み前に確実に存在させる。
+    - name: Ensure ~/.hermes/.env exists with restrictive perms
+      ansible.builtin.file:
+        path: "{{ _hermes_agent_home }}/.hermes/.env"
+        state: touch
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0600"
+        modification_time: preserve
+        access_time: preserve
+
+    # OPENROUTER_API_KEY は空文字列でなければ ~/.hermes/.env に書く。
+    # no_log:true で Vault 展開後の値を Ansible ログに残さない。
+    - name: Write OPENROUTER_API_KEY to ~/.hermes/.env
+      ansible.builtin.lineinfile:
+        path: "{{ _hermes_agent_home }}/.hermes/.env"
+        regexp: '^OPENROUTER_API_KEY='
+        line: "OPENROUTER_API_KEY={{ hermes_agent_openrouter_api_key }}"
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0600"
+        create: true
+      no_log: true
+      when: hermes_agent_openrouter_api_key | length > 0
+
     - name: Post-install reminders
       ansible.builtin.debug:
         msg:
-          - "=== Hermes Agent 構築完了 ==="
+          - "=== Hermes Agent 構築完了 (OpenRouter primary) ==="
           - "1. 動作確認: `hermes doctor` (→ docs/hermes.md)"
-          - "2. (任意) Claude 認証: `hermes setup` または ANTHROPIC_API_KEY を export"
-          - "3. セッション内モデル切替: hermes 起動後に `/model {{ hermes_agent_local_model_name }}`"
+          - "2. モデル一覧: `hermes` 起動後に `/model` (OpenRouter picker)"
+          - "3. 別 provider 追加は `hermes setup` / `hermes model` を対話実行"
+          - "   (Nous Portal / Anthropic 直 / ローカル llama-server 等)"
 
   tags:
     - hermes_agent

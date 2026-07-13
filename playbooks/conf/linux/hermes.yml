@@ -1,58 +1,52 @@
 ---
 # =====================================================================
-# Hermes Agent + ローカル LLM (Ubuntu 26.04 / Radeon 680M 想定)
+# Hermes Agent (OpenRouter primary)
 # =====================================================================
 #
 # 何を構築するか
 # --------------
-# Ubuntu 26.04 (resolute) universe の llama.cpp + ggml-vulkan backend を
-# 入れて llama-server を systemd サービス化し、その上に Hermes Agent CLI を
-# per-user で導入する。Hermes はローカル LLM (Qwen2.5-Coder-14B 等) と
-# Anthropic Claude を併用する設定で出荷する。
+# Hermes Agent CLI を per-user で導入し、OpenRouter を primary provider
+# として ~/.hermes/config.yaml と ~/.hermes/.env を bootstrap する。
+#
+# 方針
+# ----
+# Nous Research 自身が Hermes-3 / Hermes-4 を "NOT agentic" と警告して
+# いる (hermes_cli/model_switch.py:53-58) ため、Hermes Agent 公式の一次
+# 推奨に近い OpenRouter primary を標準構成とする。ローカル LLM
+# (llama_server_deb + amdgpu_gtt) は非標準の実験用途として role 分離済み。
+# 併用したい場合はロール実行後に `hermes setup` で custom endpoint を登録する。
 #
 # 構成
 # ----
-#   - register_home          : ansible_home 解決
-#   - amdgpu_gtt             : GRUB に amdgpu.gttsize=N を追記 (要再起動)
-#   - llama_server_deb       : llama.cpp-tools + libggml0-backend-vulkan
-#                              + /etc/default/llama-server 配置 + systemd
-#   - hermes_agent           : per-user インストーラ + ~/.hermes/config.yaml
-#
-# 想定ターゲット
-# --------------
-#   - Ubuntu 26.04 (resolute) ※ 24.04 以前には llama.cpp パッケージが無い
-#   - AMD iGPU (Radeon 680M = gfx1035) もしくは Vulkan 対応 GPU
-#   - 32GB RAM (14B Q4 を 20GB GTT で動かす想定)
+#   - register_home   : ansible_home 解決
+#   - amdgpu_gtt      : (opt-in) GRUB に amdgpu.gttsize=N を追記
+#   - llama_server_deb: (opt-in) llama.cpp-tools + Vulkan backend + systemd
+#   - hermes_agent    : per-user インストーラ + ~/.hermes/config.yaml + .env
 #
 # 実行例
 # ------
-#   # K16 で全部入り (14B + 20GB GTT + Hermes)
+#   # 標準構成 (OpenRouter primary、ローカル LLM は使わない)
 #   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
-#     -e server=localhost \
-#     -e amdgpu_gtt_enable=true \
-#     -e llama_server_deb_enable=true \
-#     -e hermes_agent_enable=true
+#     -e server=k16 \
+#     -e hermes_agent_enable=true \
+#     --ask-vault-pass
 #
-#   # 既に GTT 設定済みで Hermes 部分だけ流したい (再起動不要)
+#   # テンプレ変更を config.yaml に強制反映
 #   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
-#     -e server=localhost \
-#     -e llama_server_deb_enable=true \
-#     -e hermes_agent_enable=true
+#     -e server=k16 \
+#     -e hermes_agent_enable=true \
+#     -e hermes_agent_reset_config=true \
+#     --ask-vault-pass
 #
 # 実行後の手動ステップ
 # --------------------
-#   1. amdgpu_gtt_enable=true で初回適用したなら再起動 (`sudo reboot`)
-#      - 反映確認: `cat /proc/cmdline | grep gttsize`
-#   2. Claude 認証 (どちらか):
-#      - `hermes setup` を対話実行 (Anthropic OAuth or API key)
-#      - `echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc && source ~/.bashrc`
-#   3. 動作確認:
-#      - `systemctl status llama-server`
-#      - `curl http://127.0.0.1:8080/v1/models`
+#   1. 動作確認:
 #      - `hermes doctor`
-#   4. Hermes 内のモデル切替:
-#      - `/model custom:local`                    → ローカル 14B
-#      - `/model anthropic:claude-sonnet-4-6`     → Claude
+#      - `hermes config show`
+#      - `hermes`  (対話開始 → tool call 発火を確認)
+#   2. 別 provider 追加 (Nous Portal / Anthropic 直 / ローカル LLM):
+#      - `hermes setup` を対話実行
+#      - or `hermes config set` で dotted-key 経由
 # =====================================================================
 
 - hosts: "{{ server | default('localhost') }}"
