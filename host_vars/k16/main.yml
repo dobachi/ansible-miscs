@@ -63,3 +63,14 @@ hermes_agent_openrouter_api_key: "{{ vault_hermes_openrouter_api_key }}"
 # 初期化しておきたいサブディレクトリ (作業カテゴリ分けする場合)
 # hermes_agent_workspace_subdirs: [projects, sandbox, scratch]
 
+# --- Hermes dashboard を Tailscale 経由で公開 ---------------------------
+# k16 の Tailscale IP は 100.64.0.1 (`tailscale ip -4` で確認)。
+# Tailscale ACL + Basic auth の 2 段防御。
+# password は host_vars/k16/vault.yml で Vault 化:
+#   ansible-vault encrypt_string 'STRONG_PASSWORD' \
+#     --name 'vault_hermes_dashboard_password' >> host_vars/k16/vault.yml
+hermes_agent_dashboard_enable: true
+hermes_agent_dashboard_bind: "100.64.0.1"
+hermes_agent_dashboard_basic_auth_username: "dobachi"
+hermes_agent_dashboard_basic_auth_password: "{{ vault_hermes_dashboard_password }}"
+

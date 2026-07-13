@@ -16,21 +16,26 @@ TimeoutStopSec=30
 # 既に container が居たら消してから起動 (ansible 再実行や強制 restart 用)。
 ExecStartPre=-/usr/bin/docker rm -f {{ hermes_agent_container_name }}
 
+# Secrets (BASIC_AUTH_PASSWORD / API_SERVER_KEY 等) は
+# /etc/hermes-gateway.env (mode 0600, root:root) に集約して --env-file で
+# 読み込ませる。こうすると unit / systemctl show / ps auxf から漏れない。
+# 非 secret な env は -e で直接渡す (debuggability のため)。
 ExecStart=/usr/bin/docker run --rm \
     --name {{ hermes_agent_container_name }} \
+    --env-file /etc/hermes-gateway.env \
     -v {{ _hermes_agent_workspace }}:/workspace \
     -w /workspace \
     -v {{ _hermes_agent_home }}/.hermes:/opt/data \
     -e HERMES_UID={{ _hermes_agent_uid }} \
     -e HERMES_GID={{ _hermes_agent_gid }} \
 {% if hermes_agent_dashboard_enable | bool %}
-    -p 127.0.0.1:{{ hermes_agent_dashboard_port }}:{{ hermes_agent_dashboard_port }} \
+    -p {{ hermes_agent_dashboard_bind }}:{{ hermes_agent_dashboard_port }}:{{ hermes_agent_dashboard_port }} \
     -e HERMES_DASHBOARD=1 \
+    -e HERMES_DASHBOARD_PORT={{ hermes_agent_dashboard_port }} \
 {% endif %}
 {% if hermes_agent_api_server_enable | bool %}
     -p 127.0.0.1:{{ hermes_agent_api_server_port }}:{{ hermes_agent_api_server_port }} \
     -e API_SERVER_HOST=127.0.0.1 \
-    -e API_SERVER_KEY={{ hermes_agent_api_server_key }} \
 {% endif %}
 {% for arg in hermes_agent_extra_docker_args %}
     {{ arg }} \

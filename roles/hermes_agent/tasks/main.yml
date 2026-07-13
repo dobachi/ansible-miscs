@@ -74,6 +74,31 @@
           (Hermes は key 無しの API server 起動を拒否します)。
       when: hermes_agent_api_server_enable | bool
 
+    - name: Assert Basic auth is configured for non-loopback dashboard bind
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_dashboard_basic_auth_username | length > 0
+          - hermes_agent_dashboard_basic_auth_password | length > 0
+        fail_msg: >-
+          hermes_agent_dashboard_bind が loopback (127.0.0.1) 以外の場合、
+          Basic auth 認証情報 (hermes_agent_dashboard_basic_auth_username /
+          _password) を必ず設定してください。
+          Hermes 2026-06 hardening 以降、非 loopback bind には
+          DashboardAuthProvider が必須 (HERMES_DASHBOARD_INSECURE は無効化)。
+      when:
+        - hermes_agent_dashboard_enable | bool
+        - hermes_agent_dashboard_bind != "127.0.0.1"
+
+    - name: Warn if dashboard is bound to 0.0.0.0
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: dashboard is bound to 0.0.0.0. Anyone reachable on any
+          network interface will see the login prompt. Prefer binding to a
+          specific IP (Tailscale IP, VPN interface, etc.).
+      when:
+        - hermes_agent_dashboard_enable | bool
+        - hermes_agent_dashboard_bind == "0.0.0.0"
+
     # ---------- image ----------
 
     - name: Pull Hermes Agent Docker image
@@ -146,7 +171,19 @@
         force: "{{ hermes_agent_reset_config | bool }}"
         backup: true
 
-    # ---------- systemd unit (gateway container 常駐) ----------
+    # ---------- systemd unit + secrets env file (gateway container 常駐) ----------
+
+    # docker --env-file が参照する secrets 格納ファイル (root しか読めない)。
+    # これで unit file / systemctl show / ps auxf から password が漏れなくなる。
+    - name: Deploy /etc/hermes-gateway.env (secrets, 0600)
+      ansible.builtin.template:
+        src: hermes-gateway.env.j2
+        dest: /etc/hermes-gateway.env
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      notify: reload systemd and restart hermes-gateway
 
     - name: Deploy hermes-gateway systemd unit
       ansible.builtin.template:

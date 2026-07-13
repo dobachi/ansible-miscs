@@ -71,9 +71,24 @@ hermes_agent_systemd_unit_state: "started"
 # いずれも 127.0.0.1 (localhost) にだけ bind する。
 # LAN からアクセスしたい場合は SSH tunnel か reverse proxy を挟むこと。
 
-# 内蔵 dashboard (Nous Portal UI 相当) を 127.0.0.1:9119 で公開するか。
+# 内蔵 dashboard を有効化するか。true の場合、systemd unit の docker run に
+# `-p {{ bind }}:{{ port }}:{{ port }}` と HERMES_DASHBOARD=1 が加わる。
 hermes_agent_dashboard_enable: false
 hermes_agent_dashboard_port: 9119
+
+# dashboard を公開する host 側 IP。
+#   "127.0.0.1"  : localhost のみ (SSH tunnel 前提)
+#   Tailscale IP : mesh 内からアクセス可 (Basic auth 必須)
+#   "0.0.0.0"    : 全 interface (絶対に非推奨、警告あり)
+# 参考: k16 の Tailscale IP は `tailscale ip -4` で確認。
+hermes_agent_dashboard_bind: "127.0.0.1"
+
+# Basic auth (非 loopback bind の場合は必須)。
+# Hermes 2026-06 hardening 以降、非 loopback bind には
+# DashboardAuthProvider が必要 (HERMES_DASHBOARD_INSECURE は無効化済み)。
+# 空文字列だと Basic auth 未設定として扱う。
+hermes_agent_dashboard_basic_auth_username: ""
+hermes_agent_dashboard_basic_auth_password: ""
 
 # OpenAI 互換 API server を 127.0.0.1:8642 で公開するか。
 # 有効にする場合、hermes_agent_api_server_key を Vault で必ず設定すること

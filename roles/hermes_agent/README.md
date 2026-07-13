@@ -82,8 +82,11 @@ Hermes の売りである「自己成長」(skills 生成、memory 更新、cura
 
 | 変数 | 既定値 | 説明 |
 | --- | --- | --- |
-| `hermes_agent_dashboard_enable` | `false` | 内蔵 dashboard を 127.0.0.1:9119 で公開 |
+| `hermes_agent_dashboard_enable` | `false` | 内蔵 dashboard を有効化 |
 | `hermes_agent_dashboard_port` | `9119` | dashboard port |
+| `hermes_agent_dashboard_bind` | `127.0.0.1` | host 側 bind IP (Tailscale IP 可、非 loopback は Basic auth 必須) |
+| `hermes_agent_dashboard_basic_auth_username` | `""` | Basic auth ユーザ名 (非 loopback bind で必須) |
+| `hermes_agent_dashboard_basic_auth_password` | `""` | Basic auth パスワード (Vault 化推奨) |
 | `hermes_agent_api_server_enable` | `false` | OpenAI 互換 API server を 127.0.0.1:8642 で公開 |
 | `hermes_agent_api_server_port` | `8642` | API server port |
 | `hermes_agent_api_server_key` | `""` | API server 認証キー (`_enable=true` なら必須) |
