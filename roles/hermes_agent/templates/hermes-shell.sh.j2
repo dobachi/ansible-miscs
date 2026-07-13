@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# {{ hermes_agent_launcher_name }} — Hermes Agent gateway attach ラッパー
-# Managed by Ansible role hermes_agent. Do not hand-edit unless you know what
-# you're doing (次回の ansible 実行で上書きされる)。
+# {{ hermes_agent_shell_helper_name }} — Hermes Agent gateway container の bash に潜る helper
+# Managed by Ansible role hermes_agent. Do not hand-edit.
 #
 # 使い方:
-#   {{ hermes_agent_launcher_name }}                対話 CLI (container 内 hermes を docker exec)
-#   {{ hermes_agent_launcher_name }} doctor         hermes doctor
-#   {{ hermes_agent_launcher_name }} config show    設定表示
+#   {{ hermes_agent_shell_helper_name }}          gateway container 内で bash を開く
+#   {{ hermes_agent_shell_helper_name }} -c "ls"  bash -c 経由で 1 コマンド
+#
+# gateway 中の hermes user (UID/GID は host と同じ) で入るので、workspace
+# 配下に書き込んだファイルは host 側でもそのまま dobachi 所有になる。
+# 常駐 curator / dashboard 等の稼働状態を眺めるのに使う。
 #
 # 事前に systemd unit で常駐 container が起動している必要がある:
 #   sudo systemctl start {{ hermes_agent_systemd_unit_name }}
@@ -15,16 +17,13 @@ set -euo pipefail
 
 CONTAINER_NAME="${HERMES_CONTAINER:-{{ hermes_agent_container_name }}}"
 
-# container が動いているか確認 (^name$ で完全一致)
 if ! docker ps --filter "name=^${CONTAINER_NAME}$" --format '{{ "{{" }}.Names{{ "}}" }}' \
     | grep -qx "${CONTAINER_NAME}"; then
   echo "error: gateway container '${CONTAINER_NAME}' is not running" >&2
   echo "hint: sudo systemctl start {{ hermes_agent_systemd_unit_name }}" >&2
-  echo "      sudo systemctl status {{ hermes_agent_systemd_unit_name }}" >&2
   exit 1
 fi
 
-# TTY があれば -it、無ければ -i だけ (パイプ入力対応)。
 if [[ -t 0 && -t 1 ]]; then
   DOCKER_TTY_FLAGS=(-it)
 else
@@ -32,6 +31,7 @@ else
 fi
 
 exec docker exec "${DOCKER_TTY_FLAGS[@]}" \
+  -u hermes \
   -w /workspace \
   "${CONTAINER_NAME}" \
-  hermes "$@"
+  bash "$@"

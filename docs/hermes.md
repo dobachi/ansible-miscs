@@ -1,67 +1,59 @@
-# Hermes Agent セットアップ (Docker sandboxed, OpenRouter primary)
+# Hermes Agent セットアップ (Docker gateway mode, OpenRouter primary)
 
 このドキュメントは、本リポジトリの Ansible ロールを使って **Hermes Agent CLI**
-を Docker container 版で立ち上げ、host FS の触れる範囲を専用ワークスペースに
-限定する手順をまとめたもの。
+を Docker **gateway モード** で常駐させ、curator (skill 保守) と memory 更新を
+24/7 で稼働させる手順をまとめたもの。
 
 ## 隔離モデル
 
-Hermes 公式が用意している **2つの Docker 連携** のうち、
-**"Running Hermes IN Docker"** (全体 container 化) を採用する。
-
-> 公式 docs より抜粋: "There are two distinct ways Docker intersects with
-> Hermes Agent: (1) Running Hermes IN Docker… (2) Docker as a terminal
-> backend… **No nesting occurs.** You choose one model."
-
-なぜ (1) を選ぶか — `file` tool に workspace 制限フラグが無いため:
-
-- `tools/file_tools.py:461-462` — 絶対パスは resolve してそのまま実行。
-- `_path_resolution_warning` — workspace 外への書き込みも警告するだけで**阻止しない**。
-- `security:` config には path 系の restrict が無い (`allow_private_urls`,
-  `redact_secrets`, `tirith_*` 等はあるが path scope 用ではない)。
-
-したがって `terminal.backend: docker` (公式 Docker 連携の (2)) では shell
-コマンドは container で走るが、**`file` tool は依然 host FS を触る**。
-`file` tool を含めた完全隔離には、エージェントプロセス全体を container 化
-するしかない (= 公式 Docker 連携 (1))。
-
-## アーキテクチャ
+エージェント本体は container 内で走り、host からは以下 2 ディレクトリだけを
+bind mount で見せる:
 
 ```
-[Host]                                    [container: nousresearch/hermes-agent]
-~/hermes-workspace  ── bind mount ──→    /workspace   (WORKDIR)
-~/.hermes           ── bind mount ──→    /opt/data    (config, .env, sessions)
+[Host / systemd unit hermes-gateway.service]
+    └─ docker run --name hermes nousresearch/hermes-agent gateway run
+           ├─ curator (24/7 skill 保守)
+           ├─ dashboard (opt-in, 127.0.0.1:9119)
+           └─ hermes CLI (docker exec で attach)
 
-$ hermes                                 (~/.local/bin/hermes = launcher)
-     │
-     └──> docker run --rm -it \
-              -v ~/hermes-workspace:/workspace \
-              -w /workspace \
-              -v ~/.hermes:/opt/data \
-              -e HERMES_UID=$(id -u) \
-              -e HERMES_GID=$(id -g) \
-              nousresearch/hermes-agent:latest "$@"
+[Host bind mounts]
+  ~/hermes-workspace  → /workspace   (WORKDIR、触らせるファイル置き場)
+  ~/.hermes           → /opt/data    (config, .env, skills, memories, sessions)
 ```
 
-- `file` tool が `/etc/passwd` を書こうとしても、届くのは container 内の
-  `/etc/passwd` (別物、rootfs は image layer で immutable、 hermes 非 root user
-  権限外)。
-- `terminal` tool も同 container 内 shell なので `rm -rf ~` は container 内の
-  空 `$HOME` を消すだけで host には影響しない。
-- host に永続化されるのは `/workspace` (= `~/hermes-workspace`) と
-  `/opt/data` (= `~/.hermes`) の書き込みだけ。それ以外の host FS は container
-  から**存在しない**扱い。
+- `file` tool は container 内の `/workspace` と `/opt/data` 以外に届かない
+  (rootfs は image layer で immutable、他 host FS は container から不可視)。
+- `terminal` tool も同 container 内 shell で走るので `rm -rf ~` の類が host に
+  波及しない。
+- `$HOME/.ssh` などは container 側では**存在しない**扱い。触らせたいファイルは
+  `~/hermes-workspace/` にコピー / clone してから使う。
+
+## Self-improvement (Hermes の売り) との整合
+
+Hermes が売りにする「自己成長」— skills 生成、memory 更新、curator による
+背景保守 — は gateway モードで完全に機能する:
+
+| 要素 | 保存先 | 動作 |
+| --- | --- | --- |
+| Skills | `~/.hermes/skills/` | bind mount で永続化、curator が 24/7 更新 |
+| Memory | `~/.hermes/memories/` | クロスセッションで更新 |
+| Sessions / state.db | `~/.hermes/sessions/` | 永続化 |
+| SOUL.md (persona) | `~/.hermes/SOUL.md` | 保持 |
+| **Curator (background)** | container 内 s6-supervised | **常駐 → 24/7 稼働** |
+
+短時間 `--rm` の ephemeral モードでは curator が session 終了で死ぬため、
+本リポジトリは gateway モードを標準構成としている。
 
 ## 構成ロール
 
-| 役割 | ロール | 補足 |
-|---|---|---|
-| Docker Engine + docker group | [`docker`](../roles/docker/) | Compose v2 plugin、dobachi を docker group に追加 |
-| Hermes Agent (container + launcher) | [`hermes_agent`](../roles/hermes_agent/) | image pull + `~/.local/bin/hermes` 配置 + workspace 初期化 |
+| 役割 | ロール |
+|---|---|
+| Docker Engine + docker group | [`docker`](../roles/docker/) |
+| Hermes Agent (gateway container + wrappers) | [`hermes_agent`](../roles/hermes_agent/) |
 
 ## 前提
 
-- Ansible 2.9 以上
+- Ansible 2.9 以上、`community.docker` collection
 - Ubuntu 24.04 以降 (Debian 系)
 - OpenRouter API key を Vault 化して渡せる状態
 - NOPASSWD sudo (もしくは `--ask-become-pass`)
@@ -85,115 +77,125 @@ ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
 
 これで:
 - Docker Engine が起動、`dobachi` が docker group に入る
-- `nousresearch/hermes-agent:latest` が pull される
-- `~/hermes-workspace/` が作成される (0700)
-- `~/.hermes/config.yaml` と `~/.hermes/.env` が bootstrap される
-- `~/.local/bin/hermes` にラッパースクリプトが配置される
+- `nousresearch/hermes-agent:latest` を pull
+- `~/hermes-workspace/` を 0700 で作成
+- `~/.hermes/config.yaml` と `~/.hermes/.env` を bootstrap
+- `/etc/systemd/system/hermes-gateway.service` を配置 → enable + start
+- `~/.local/bin/hermes` (docker exec CLI ラッパー) 配置
+- `~/.local/bin/hermes-shell` (docker exec bash helper) 配置
 
 ## 実行後の手動ステップ
 
-### 1. docker group の反映
+### 1. docker group の反映 (初回のみ)
 
 ```bash
-newgrp docker              # 現セッションに反映
-# または一度ログアウトしてログイン
-docker run --rm hello-world # 動作確認
+newgrp docker              # 現セッションに反映 (または一度ログアウト)
+docker ps --filter name=hermes    # 常駐 container が動いているか
 ```
 
-### 2. PATH と launcher の確認
+### 2. サービス状態確認
 
 ```bash
-command -v hermes           # ~/.local/bin/hermes を指すはず
-head -1 ~/.local/bin/hermes # shebang 確認
+systemctl status hermes-gateway
+journalctl -u hermes-gateway -f    # container ログを追う
 ```
 
 ### 3. 動作確認
 
 ```bash
-hermes doctor               # container 内で hermes doctor が走る
-hermes config show          # provider: openrouter が反映されているか
+hermes doctor                # container 内で hermes doctor
+hermes config show           # provider: openrouter が反映されているか
 ```
 
-### 4. workspace に触らせたいファイルを配置
+### 4. workspace にファイルを置いて対話
 
 ```bash
-# 例: 既存プロジェクトをコピー
-cp -r ~/some-project ~/hermes-workspace/
+git clone https://github.com/... ~/hermes-workspace/example-repo
 
-# 例: リポジトリを clone
-git clone https://github.com/... ~/hermes-workspace/some-repo
-
-# 例: 一時的に別ディレクトリを触らせたい場合 (自己責任)
-HERMES_WORKSPACE=/path/to/other-dir hermes
+hermes                       # 対話開始
+# セッション内:
+#   /model openrouter/anthropic/claude-sonnet-4.5
+#   /model openrouter/qwen/qwen3-coder
 ```
 
-### 5. 対話開始
+### 5. container 内 shell に潜る
 
 ```bash
-hermes
+hermes-shell                       # container 内 bash (workspace WORKDIR)
+hermes-shell -c "ls /opt/data/skills"  # 1 コマンド実行
 ```
 
-セッション内:
+curator の稼働状態を眺めたい場合:
+```bash
+docker exec hermes ps aux | grep curator
 ```
-/model openrouter/anthropic/claude-sonnet-4.5
-/model openrouter/qwen/qwen3-coder
+
+## 手動制御
+
+```bash
+sudo systemctl stop hermes-gateway         # 停止
+sudo systemctl start hermes-gateway        # 起動
+sudo systemctl restart hermes-gateway      # 再起動
+sudo systemctl disable hermes-gateway      # boot 時 auto-start 無効化
 ```
 
 ## 推奨モデル (OpenRouter 経由)
 
-| 用途 | モデル slug | 備考 |
+| 用途 | slug | 備考 |
 | --- | --- | --- |
 | メイン (agentic) | `anthropic/claude-sonnet-4.5` | Hermes docs 一次推奨クラス |
 | コスト重視 | `anthropic/claude-haiku-4-5` | 廉価、tool-use OK |
-| コーディング特化 | `qwen/qwen3-coder`, `deepseek/deepseek-v3.2` | Hermes curated list 掲載 |
+| コーディング特化 | `qwen/qwen3-coder`, `deepseek/deepseek-v3.2` | Hermes curated 掲載 |
 
 ## トラブルシューティング
 
-### `docker: permission denied while trying to connect to the docker daemon`
+### `docker exec: no such container: hermes`
 
-現在のシェルに docker group がまだ反映されていない。`newgrp docker` を実行するか
-一度ログアウト → ログイン。
-
-### `error: workspace directory not found: ~/hermes-workspace`
-
-Ansible が workspace を作る前に launcher を実行した、または手動で削除した。
+gateway container が起動していない。
 ```bash
-mkdir -p ~/hermes-workspace
-chmod 700 ~/hermes-workspace
+sudo systemctl status hermes-gateway
+sudo systemctl start hermes-gateway
 ```
+
+### `error: gateway container 'hermes' is not running`
+
+ラッパースクリプトのメッセージ。上記と同じ状況。
 
 ### `hermes doctor` で `✗ OPENROUTER_API_KEY not set`
 
-`~/.hermes/.env` に key が書かれていない。Vault 展開失敗の可能性が高い。
-`--ask-vault-pass` を付けて ansible を再実行。
+Vault 展開失敗の可能性。`--ask-vault-pass` を付けて ansible 再実行。
 
 ### tool call が発火しない
 
-model slug が **agentic モデルでない**可能性。Hermes 側が「NOT agentic」と
-警告するモデル (`hermes-3-*`, `hermes-4-*`) は使わない。Claude / GPT / Gemini
+Hermes-3 / Hermes-4 系モデル (`hermes-3-*`, `hermes-4-*`) は NOT agentic と
+Hermes 自身が警告 (`hermes_cli/model_switch.py:53-58`)。Claude / GPT / Gemini
 / DeepSeek / Qwen3 系に切り替える。
 
-### 別 provider を追加したい
+### 別 provider を追加したい (Nous Portal / Anthropic 直)
 
-container 内で `hermes setup` を対話実行するか、`hermes config set` を叩く:
-
+container 内で:
 ```bash
 hermes setup                                        # 対話ウィザード
-hermes config set ANTHROPIC_API_KEY sk-ant-...      # 自動で .env 側に振り分け
+hermes config set ANTHROPIC_API_KEY sk-ant-...      # 自動で .env に振り分け
 ```
 
 これらの変更は host `~/.hermes/config.yaml` / `~/.hermes/.env` に永続化される。
 
+### dashboard を有効にしたい
+
+`host_vars/k16/main.yml` で:
+```yaml
+hermes_agent_dashboard_enable: true
+```
+
+ansible 再実行後、`http://127.0.0.1:9119` に host 側ブラウザからアクセス可能
+(LAN からは見えない)。
+
 ## 非標準構成 (ローカル LLM)
 
-本リポジトリは `roles/llama_server_deb` / `roles/amdgpu_gtt` を残しているが、
-Hermes と組み合わせる用途は**推奨しない**:
-
-- Hermes 自身が Hermes-3 / Hermes-4 を "NOT agentic" と警告
-  (`hermes_cli/model_switch.py:53-58`)
-- ローカルサイズ (7-14B) の agentic モデルは Hermes curated list に載っていない
-
-`llama_server_deb` はテキスト補完/実験用途で単独で使う想定に留める。
+`roles/llama_server_deb` / `roles/amdgpu_gtt` は残しているが、Hermes と
+組み合わせる用途は推奨しない (Nous 自身が Hermes-3/4 を NOT agentic と警告
+しているため)。ローカル LLM は単独用途のみ。
 
 ## 関連ドキュメント
 

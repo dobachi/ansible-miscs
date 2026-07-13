@@ -1,29 +1,31 @@
 ---
 # tasks file for roles/hermes_agent
 #
-# Hermes Agent CLI を Docker container 版 (nousresearch/hermes-agent) として
-# per-user 導入する。ラッパースクリプトを ~/.local/bin/{{ hermes_agent_launcher_name }}
-# に置き、専用ワークスペース ({{ hermes_agent_workspace }}) を /workspace として
-# bind mount する。file tool は container 外を触れない。
+# Hermes Agent CLI を Docker gateway モードで常駐させる。
+#   - /etc/systemd/system/{{ hermes_agent_systemd_unit_name }} を配置
+#   - docker run --name {{ hermes_agent_container_name }} で long-lived container
+#   - ~/.local/bin/{{ hermes_agent_launcher_name }} は docker exec ラッパー
+#   - ~/.local/bin/{{ hermes_agent_shell_helper_name }} は container 内 bash に落ちる helper
 #
 # 前提:
 #   - Docker Engine が動作中 (roles/docker で導入済み想定)
 #   - hermes_agent_user が docker グループに所属 (roles/docker の docker_users)
-#   - OPENROUTER_API_KEY を Vault 化した値で hermes_agent_openrouter_api_key
-#     に渡す
+#   - OPENROUTER_API_KEY を Vault 化した値で hermes_agent_openrouter_api_key に渡す
 
 - block:
 
     # ---------- pre-flight ----------
 
-    - name: Look up home of hermes_agent_user
+    - name: Look up passwd entry of hermes_agent_user
       ansible.builtin.getent:
         database: passwd
         key: "{{ hermes_agent_user }}"
 
-    - name: Set fact for hermes_agent_user home
+    - name: Set facts for hermes_agent_user home / UID / GID
       ansible.builtin.set_fact:
         _hermes_agent_home: "{{ getent_passwd[hermes_agent_user][4] }}"
+        _hermes_agent_uid: "{{ getent_passwd[hermes_agent_user][1] }}"
+        _hermes_agent_gid: "{{ getent_passwd[hermes_agent_user][2] }}"
 
     - name: Expand ~ in hermes_agent_workspace
       ansible.builtin.set_fact:
@@ -45,10 +47,9 @@
         - _hermes_agent_docker_status.status.ActiveState is defined
         - _hermes_agent_docker_status.status.ActiveState != "active"
 
-    # /etc/group を読むだけでは「現行 login shell が docker group を activate
-    # 済みか」がわからない (usermod 後にログアウトしていないと、既存セッション
-    # では group が反映されない = docker.sock 接続失敗)。
-    # `sudo -u <user> docker info` で **fresh 子プロセスで実接続** を試す。
+    # /etc/group を読むだけでは「login shell が docker group を activate 済みか」
+    # がわからない (usermod 後にログアウトしていないと反映されない)。
+    # `sudo -u <user> docker version` で fresh 子プロセスで実接続を試す。
     - name: Assert hermes_agent_user can talk to Docker daemon (fresh subprocess)
       ansible.builtin.command:
         cmd: docker version --format json
@@ -58,9 +59,20 @@
       changed_when: false
       failed_when: _hermes_agent_docker_probe.rc != 0
       # 失敗ケースの典型:
-      #   1) docker.sock 権限エラー: usermod -aG docker した直後で、既存 login
-      #      session に group が反映されていない → newgrp docker or 再ログイン
-      #   2) socket group が 'docker' 以外 → getent group で確認して group 追加
+      #   1) usermod -aG docker した直後で既存 login session に反映されてない
+      #      → newgrp docker or 再ログイン
+      #   2) docker.sock の group が 'docker' ではない
+      #      → getent group docker で確認
+
+    - name: Assert API server key is set when API server is enabled
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_api_server_key | length > 0
+        fail_msg: >-
+          hermes_agent_api_server_enable=true の場合、
+          hermes_agent_api_server_key を必ず設定してください
+          (Hermes は key 無しの API server 起動を拒否します)。
+      when: hermes_agent_api_server_enable | bool
 
     # ---------- image ----------
 
@@ -72,7 +84,7 @@
       become: true
       become_user: "{{ hermes_agent_user }}"
 
-    # ---------- workspace directory ----------
+    # ---------- workspace ----------
 
     - name: Ensure workspace root directory exists (0700)
       ansible.builtin.file:
@@ -112,8 +124,6 @@
         modification_time: preserve
         access_time: preserve
 
-    # OPENROUTER_API_KEY は空文字列でなければ ~/.hermes/.env に書く。
-    # no_log:true で Vault 展開後の値を Ansible ログに残さない。
     - name: Write OPENROUTER_API_KEY to ~/.hermes/.env
       ansible.builtin.lineinfile:
         path: "{{ _hermes_agent_home }}/.hermes/.env"
@@ -126,10 +136,6 @@
       no_log: true
       when: hermes_agent_openrouter_api_key | length > 0
 
-    # force の挙動:
-    #   - hermes_agent_reset_config=false (既定): 既存ファイルは触らない。
-    #     CLI (`hermes config set` 等) の修正はロール再実行で消えない。
-    #   - hermes_agent_reset_config=true: template で強制上書き (元は .~ に退避)。
     - name: Bootstrap ~/.hermes/config.yaml (force toggled by hermes_agent_reset_config)
       ansible.builtin.template:
         src: hermes-config.yaml.j2
@@ -140,7 +146,28 @@
         force: "{{ hermes_agent_reset_config | bool }}"
         backup: true
 
-    # ---------- wrapper script ----------
+    # ---------- systemd unit (gateway container 常駐) ----------
+
+    - name: Deploy hermes-gateway systemd unit
+      ansible.builtin.template:
+        src: hermes-gateway.service.j2
+        dest: "/etc/systemd/system/{{ hermes_agent_systemd_unit_name }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: reload systemd and restart hermes-gateway
+
+    - name: Reload systemd if unit changed
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable + start hermes-gateway service
+      ansible.builtin.systemd:
+        name: "{{ hermes_agent_systemd_unit_name }}"
+        enabled: "{{ hermes_agent_systemd_unit_enabled | bool }}"
+        state: "{{ hermes_agent_systemd_unit_state }}"
+        daemon_reload: true
+
+    # ---------- user-side helpers (~/.local/bin/*) ----------
 
     - name: Ensure launcher directory exists
       ansible.builtin.file:
@@ -150,7 +177,7 @@
         group: "{{ hermes_agent_user }}"
         mode: "0755"
 
-    - name: Deploy Hermes sandboxed launcher script
+    - name: Deploy hermes CLI attach launcher (docker exec)
       ansible.builtin.template:
         src: hermes-launcher.sh.j2
         dest: "{{ _hermes_agent_launcher_dir }}/{{ hermes_agent_launcher_name }}"
@@ -158,18 +185,26 @@
         group: "{{ hermes_agent_user }}"
         mode: "0755"
 
+    - name: Deploy hermes-shell helper (docker exec bash)
+      ansible.builtin.template:
+        src: hermes-shell.sh.j2
+        dest: "{{ _hermes_agent_launcher_dir }}/{{ hermes_agent_shell_helper_name }}"
+        owner: "{{ hermes_agent_user }}"
+        group: "{{ hermes_agent_user }}"
+        mode: "0755"
+
     - name: Post-install reminders
       ansible.builtin.debug:
         msg:
-          - "=== Hermes Agent (Docker sandboxed) 構築完了 ==="
-          - "Workspace: {{ _hermes_agent_workspace }} (Hermes からはここだけ触れる)"
-          - "Launcher : {{ _hermes_agent_launcher_dir }}/{{ hermes_agent_launcher_name }}"
-          - "Image    : {{ hermes_agent_image }}"
+          - "=== Hermes Agent (gateway mode) 構築完了 ==="
+          - "Container : {{ hermes_agent_container_name }} (systemd unit: {{ hermes_agent_systemd_unit_name }})"
+          - "Workspace : {{ _hermes_agent_workspace }}"
+          - "Image     : {{ hermes_agent_image }}"
           - ""
-          - "1. PATH 確認: `command -v {{ hermes_agent_launcher_name }}`"
-          - "2. 動作確認: `{{ hermes_agent_launcher_name }} doctor`"
-          - "3. 対話開始: `{{ hermes_agent_launcher_name }}`"
-          - "4. 触らせたいファイルは workspace にコピー/clone してから開始"
+          - "1. サービス状態: `systemctl status {{ hermes_agent_systemd_unit_name }}`"
+          - "2. 対話開始   : `{{ hermes_agent_launcher_name }}`"
+          - "3. 内部 shell : `{{ hermes_agent_shell_helper_name }}` (container 内 bash)"
+          - "4. 触らせるファイルは workspace に置く"
 
   tags:
     - hermes_agent

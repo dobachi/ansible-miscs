@@ -1,55 +1,58 @@
 ---
 # =====================================================================
-# Hermes Agent (Docker sandboxed, OpenRouter primary)
+# Hermes Agent (Docker gateway mode, OpenRouter primary)
 # =====================================================================
 #
 # 何を構築するか
 # --------------
-# Hermes Agent CLI を **nousresearch/hermes-agent container** 版として
-# per-user 導入する。ラッパースクリプト ~/.local/bin/hermes を配置し、
-# 実行時に専用 workspace (~/hermes-workspace) と ~/.hermes を bind mount
-# した状態で docker run を発火する。
+# Hermes Agent を **常駐 Docker container** として systemd で管理する。
+# 対話 CLI は `docker exec` 経由で container 内の hermes を叩く。
+# curator (skill 保守) / memory 更新 が 24/7 動作する。
 #
-# 隔離モデル
-# ----------
-#   [Host]                                 [container: nousresearch/hermes-agent]
-#   ~/hermes-workspace  ── bind mount ──→  /workspace  (WORKDIR)
-#   ~/.hermes           ── bind mount ──→  /opt/data   (config, API key, sessions)
+# アーキテクチャ
+# --------------
+#   [Host / systemd unit hermes-gateway.service]
+#       └─ docker run --name hermes nousresearch/hermes-agent gateway run
+#              ├─ curator (24/7)
+#              ├─ dashboard (opt-in, 127.0.0.1:9119)
+#              ├─ messaging gateway (opt-in)
+#              └─ hermes CLI (docker exec で attach)
 #
-# file tool も terminal tool も上記 2 ディレクトリの外を触れない。
-# $HOME/.ssh, /etc/passwd 等は container からは存在しない扱い。
+#   [Host bind mounts]
+#     ~/hermes-workspace  → /workspace  (WORKDIR, 触らせたいファイル置き場)
+#     ~/.hermes           → /opt/data   (config, .env, skills, memories, sessions)
 #
-# 触らせたいファイルは workspace にコピー / clone してから hermes を起動する。
+#   [Host wrappers ~/.local/bin/]
+#     hermes         → docker exec で container 内の hermes CLI
+#     hermes-shell   → docker exec で container 内の bash に落ちる
+#
+# 隔離モデル: file / terminal / browser tool は container 内で走り、上記
+# 2 bind mount の外を触れない。$HOME/.ssh, /etc/passwd 等の host FS は
+# container からは見えない扱い。
 #
 # 構成ロール
 # ----------
 #   - register_home  : ansible_home 解決
-#   - docker         : Docker CE + docker group で dobachi 追加
-#   - hermes_agent   : image pull + wrapper + workspace + ~/.hermes bootstrap
+#   - docker         : Docker CE + dobachi を docker group に追加
+#   - hermes_agent   : image pull + workspace + ~/.hermes + systemd unit + wrappers
 #
 # 実行例
 # ------
-#   # 標準構成 (Docker sandboxed, OpenRouter primary)
+#   # 標準構成
 #   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
 #     -e server=k16 \
 #     -e hermes_agent_enable=true \
-#     --ask-vault-pass
-#
-#   # テンプレ変更を config.yaml に強制反映したい場合
-#   ansible-playbook -i hosts playbooks/conf/linux/hermes.yml \
-#     -e server=k16 \
-#     -e hermes_agent_enable=true \
-#     -e hermes_agent_reset_config=true \
 #     --ask-vault-pass
 #
 # 実行後の手動ステップ
 # --------------------
-#   1. docker group 反映: `newgrp docker` (or 一度ログアウト)
-#   2. PATH 確認: `command -v hermes` が ~/.local/bin/hermes を指す
-#   3. 動作確認: `hermes doctor`
-#   4. 触らせたいファイルを workspace に配置:
-#      cp -r ~/some-project ~/hermes-workspace/  (または `git clone` する)
-#   5. `hermes` で対話開始
+#   1. docker group 反映: `newgrp docker` (初回のみ、以降不要)
+#   2. サービス起動確認: `systemctl status hermes-gateway`
+#   3. 動作確認         : `hermes doctor`
+#   4. 触らせたいファイルを workspace に置く:
+#      git clone <url> ~/hermes-workspace/some-repo
+#   5. 対話開始         : `hermes`
+#   6. container 内 shell: `hermes-shell` (デバッグ / 検査用)
 # =====================================================================
 
 - hosts: "{{ server | default('localhost') }}"

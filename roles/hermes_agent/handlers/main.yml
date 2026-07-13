@@ -1,0 +1,10 @@
+---
+# handlers file for roles/hermes_agent
+
+- name: reload systemd and restart hermes-gateway
+  ansible.builtin.systemd:
+    name: "{{ hermes_agent_systemd_unit_name }}"
+    state: restarted
+    daemon_reload: true
+
+# vim: set et ts=2 sw=2:

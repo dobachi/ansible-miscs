@@ -1,74 +1,96 @@
 ---
 # defaults file for roles/hermes_agent
 #
-# Hermes Agent (Nous Research) を **Docker container 版** として per-user 導入する。
+# Hermes Agent (Nous Research) を **Docker gateway モード** で常駐させる。
 #
-# 隔離モデル (docs/hermes.md 参照):
-#   - エージェント本体 (venv, Node, Playwright, file/terminal/browser tools) は
-#     nousresearch/hermes-agent:latest container の内側で走る。
-#   - host 側で container に見せるのは以下の2ディレクトリだけ:
-#       {{ hermes_agent_workspace }} → /workspace   (作業用固定ディレクトリ)
-#       ~/.hermes                    → /opt/data    (config, API key, sessions)
-#   - file tool は container 内の /workspace と /opt/data 以外書き込み不可
-#     (rootfs は image layer で immutable)。
-#   - terminal tool も同 container 内で走るので、`rm -rf ~` 系の host 破壊が
-#     起きない。
-#   - $PWD 依存ではなく **専用ワークスペース固定**: hermes を $HOME から誤って
-#     叩いても ~/.ssh 等を container に見せる事故が起きない。触らせたいファイル
-#     は workspace 配下に置く運用。
+# アーキテクチャ
+# --------------
+#   [Host]                            [container: nousresearch/hermes-agent]
+#   systemd unit ── docker run ────>  hermes gateway run (long-lived)
+#                                       ├─ curator (24/7 skill 保守)
+#                                       ├─ dashboard (opt-in, 127.0.0.1:9119)
+#                                       ├─ messaging gateway (opt-in)
+#                                       └─ hermes CLI (docker exec で attach)
+#
+#   ~/hermes-workspace  ── bind mount ──→  /workspace   (WORKDIR)
+#   ~/.hermes           ── bind mount ──→  /opt/data    (config, .env, skills, memories, sessions)
+#
+# ephemeral (--rm) モードとの違い:
+#   - 常駐 container なので curator / skill 学習 / user model が 24/7 で動く
+#   - ~/.local/bin/hermes は `docker exec` で container に潜って hermes CLI を叩く
+#   - ~/.local/bin/hermes-shell は container 内 bash に落ちる (デバッグ/検査用)
+#
+# 隔離モデルは ephemeral 版と同じ:
+#   - file / terminal / browser tool は container 内で走り、bind mount した
+#     2 ディレクトリの外を触れない (rootfs は image layer、他 host FS は不可視)
 
 # このロール本体を実行するかのスイッチ。
 hermes_agent_enable: false
 
-# Hermes を入れる対象ユーザー (~/.hermes 配下に config が展開される)。
-# become 前の実行ユーザーを推定する。ansible_user_id (become 後の root) は使わない。
+# Hermes を入れる対象ユーザー (~/.hermes 配下 + workspace を所有)。
 hermes_agent_user: >-
   {{ ansible_facts['env']['SUDO_USER']
      | default(ansible_user, true)
      | default(lookup('env', 'USER'), true) }}
 
-# 公式 Docker image。tag は :latest 固定でも構わないが、pinning したい場合は
-# host_vars で `nousresearch/hermes-agent:0.18.2` のように渡す。
+# 公式 Docker image。tag pinning したければ host_vars で上書き。
 hermes_agent_image: "nousresearch/hermes-agent:latest"
 
-# Hermes container が /workspace として bind mount する host 側ディレクトリ。
-# ユーザーが Hermes に触らせたいファイルはここに置く / clone / cp する。
-# 絶対パスまたは ~ で始まるパスを受け付ける (ロール内で展開)。
-# 一時的に別ディレクトリを使いたい場合はラッパー起動時に環境変数で上書き:
-#   HERMES_WORKSPACE=/tmp/other-dir hermes
+# 常駐 container の名前。docker exec のターゲット。
+# 変えるなら、~/.local/bin/hermes ラッパーも同じ名前を参照するよう
+# 環境変数 HERMES_CONTAINER=... を export しておくこと。
+hermes_agent_container_name: "hermes"
+
+# container が /workspace として bind mount する host 側ディレクトリ。
+# 触らせたいファイルはここに置く / clone する。
 hermes_agent_workspace: "~/hermes-workspace"
 
-# ワークスペース内に事前に掘っておくサブディレクトリ (作業カテゴリ分けする場合)。
-# 例: hermes_agent_workspace_subdirs: [projects, sandbox, scratch]
-# 空 list ならワークスペースルートだけを 0700 で作成する。
+# workspace 配下に事前に掘っておくサブディレクトリ (空 list なら root だけ作成)。
 hermes_agent_workspace_subdirs: []
 
-# ラッパースクリプトの設置先 (per-user)。~/.local/bin は PATH に入っている
-# 前提 (Ubuntu 26.04 の default .profile が自動追加)。
+# ラッパー / helper の設置先。
 hermes_agent_launcher_dir: "~/.local/bin"
 
-# ラッパースクリプト名。既定 "hermes" にしておくと従来の CLI muscle memory を
-# そのまま活かせる (host 直インストール版は uninstall 済み前提)。
-# 「sandbox 経由と明示したい」なら hermes_agent_launcher_name: hermes-sb 等。
+# メイン CLI ラッパー名 (docker exec 経由で container 内 hermes を叩く)。
 hermes_agent_launcher_name: "hermes"
+
+# bash shell helper 名 (docker exec 経由で container 内 bash に落ちる)。
+hermes_agent_shell_helper_name: "hermes-shell"
+
+# gateway systemd unit のファイル名 (拡張子込み)。
+hermes_agent_systemd_unit_name: "hermes-gateway.service"
+
+# systemd unit を boot 時に auto-start するか。false にすると
+# `sudo systemctl start hermes-gateway` で手動制御する運用。
+hermes_agent_systemd_unit_enabled: true
+
+# ansible 実行完了時点で container を起動するか (started / stopped / restarted)。
+hermes_agent_systemd_unit_state: "started"
+
+# --- Optional 公開ポート -------------------------------------------------
+# いずれも 127.0.0.1 (localhost) にだけ bind する。
+# LAN からアクセスしたい場合は SSH tunnel か reverse proxy を挟むこと。
+
+# 内蔵 dashboard (Nous Portal UI 相当) を 127.0.0.1:9119 で公開するか。
+hermes_agent_dashboard_enable: false
+hermes_agent_dashboard_port: 9119
+
+# OpenAI 互換 API server を 127.0.0.1:8642 で公開するか。
+# 有効にする場合、hermes_agent_api_server_key を Vault で必ず設定すること
+# (キー無し公開は Hermes 側で拒否される)。
+hermes_agent_api_server_enable: false
+hermes_agent_api_server_port: 8642
+hermes_agent_api_server_key: ""
 
 # docker run に追加で渡したい引数 (list of strings)。
 # 例:
-#   - "--network=host"       # container から host の 8080 llama-server を叩く場合
 #   - "--memory=16g"
-# 既定の bind mount (workspace + ~/.hermes) と UID/GID forwarding は自動。
+#   - "--cpus=4"
+# 既定の bind mount / port 公開 / restart policy は自動。
 hermes_agent_extra_docker_args: []
 
 # --- OpenRouter provider 設定 -------------------------------------------
-# provider: openrouter は Hermes の first-class provider (HermesOverlay 登録済み)。
-# API key は ~/.hermes/.env の OPENROUTER_API_KEY を container から
-# /opt/data/.env として拾う。
-
-# OpenRouter で primary として使うモデル ID (OpenRouter canonical slug)。
 hermes_agent_openrouter_model: "anthropic/claude-sonnet-4.5"
-
-# OPENROUTER_API_KEY。空文字列だと ~/.hermes/.env への書き込みを skip する。
-# 標準運用: host_vars で `{{ vault_hermes_openrouter_api_key }}` を渡す。
 hermes_agent_openrouter_api_key: ""
 
 # 既存の ~/.hermes/config.yaml をロールのテンプレで強制上書きするか。

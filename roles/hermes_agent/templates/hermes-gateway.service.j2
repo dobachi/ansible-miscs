@@ -1,0 +1,44 @@
+[Unit]
+# Managed by Ansible role hermes_agent. Do not hand-edit.
+Description=Hermes Agent gateway (long-lived Docker container)
+Documentation=https://hermes-agent.nousresearch.com/docs/user-guide/docker
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+# 既に container が居たら消してから起動 (ansible 再実行や強制 restart 用)。
+ExecStartPre=-/usr/bin/docker rm -f {{ hermes_agent_container_name }}
+
+ExecStart=/usr/bin/docker run --rm \
+    --name {{ hermes_agent_container_name }} \
+    -v {{ _hermes_agent_workspace }}:/workspace \
+    -w /workspace \
+    -v {{ _hermes_agent_home }}/.hermes:/opt/data \
+    -e HERMES_UID={{ _hermes_agent_uid }} \
+    -e HERMES_GID={{ _hermes_agent_gid }} \
+{% if hermes_agent_dashboard_enable | bool %}
+    -p 127.0.0.1:{{ hermes_agent_dashboard_port }}:{{ hermes_agent_dashboard_port }} \
+    -e HERMES_DASHBOARD=1 \
+{% endif %}
+{% if hermes_agent_api_server_enable | bool %}
+    -p 127.0.0.1:{{ hermes_agent_api_server_port }}:{{ hermes_agent_api_server_port }} \
+    -e API_SERVER_HOST=127.0.0.1 \
+    -e API_SERVER_KEY={{ hermes_agent_api_server_key }} \
+{% endif %}
+{% for arg in hermes_agent_extra_docker_args %}
+    {{ arg }} \
+{% endfor %}
+    {{ hermes_agent_image }} \
+    gateway run
+
+ExecStop=/usr/bin/docker stop -t 20 {{ hermes_agent_container_name }}
+
+[Install]
+WantedBy=multi-user.target
